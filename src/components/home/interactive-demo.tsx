@@ -17,7 +17,7 @@ export function InteractiveDemo() {
   const [upsellAccepted, setUpsellAccepted] = useState(true);
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+    <section className="py-20 max-w-6xl mx-auto">
       <div className="rounded-3xl border border-zinc-800 bg-gradient-to-b from-zinc-900/80 to-zinc-950/80 p-6 sm:p-10 shadow-2xl relative overflow-hidden backdrop-blur-xl">
         {/* Glow accent */}
         <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-600/20 blur-3xl" />

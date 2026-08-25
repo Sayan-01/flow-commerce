@@ -1,0 +1,253 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  Bot,
+  ShoppingBag,
+  Sparkles,
+  ShieldCheck,
+  RotateCcw,
+  Store,
+  Terminal,
+  Loader2,
+  Check,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChatMessage } from "./chat-message";
+import { ChatInput } from "./chat-input";
+import { CartDrawer } from "./cart-drawer";
+import { ChatMessageItem, CartState } from "./types";
+
+interface ChatContainerProps {
+  initialCart?: CartState | null;
+}
+
+const INITIAL_GREETING: ChatMessageItem = {
+  id: "msg_welcome",
+  role: "assistant",
+  content: `👋 Welcome to FlowCommerce AI Sales Copilot!\n\nI can help you explore our verified catalog, check live inventory counts, and propose reasoned upsells tailored to your setup.\n\nWhat kind of developer gear, laptop, or workspace accessories are you looking for today?`,
+  createdAt: new Date().toISOString(),
+};
+
+export function ChatContainer({ initialCart = null }: ChatContainerProps) {
+  const searchParams = useSearchParams();
+  const initialPrompt = searchParams.get("prompt");
+
+  const [sessionId, setSessionId] = useState<string>("");
+  const [messages, setMessages] = useState<ChatMessageItem[]>([INITIAL_GREETING]);
+  const [cart, setCart] = useState<CartState | null>(initialCart);
+  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasProcessedInitialPrompt, setHasProcessedInitialPrompt] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const showToast = (text: string) => {
+    setToastMessage(text);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Initialize Session ID
+  useEffect(() => {
+    let sid = localStorage.getItem("flow_session_id");
+    if (!sid) {
+      sid = `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      localStorage.setItem("flow_session_id", sid);
+    }
+    setSessionId(sid);
+  }, []);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  // Handle URL parameter prompt (e.g. ?prompt=...)
+  useEffect(() => {
+    if (initialPrompt && sessionId && !hasProcessedInitialPrompt) {
+      setHasProcessedInitialPrompt(true);
+      sendMessage(initialPrompt);
+    }
+  }, [initialPrompt, sessionId, hasProcessedInitialPrompt]);
+
+  // Send Message Handler
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return;
+
+    const userMessage: ChatMessageItem = {
+      id: `usr_${Date.now()}`,
+      role: "user",
+      content: text,
+      createdAt: new Date().toISOString(),
+    };
+
+    const newHistory = [...messages, userMessage];
+    setMessages(newHistory);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newHistory.map((m) => ({ role: m.role, content: m.content })),
+          sessionId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to process chat message");
+      }
+
+      const assistantMessage: ChatMessageItem = {
+        id: `asst_${Date.now()}`,
+        role: "assistant",
+        content: data.reply,
+        toolExecutions: data.toolExecutions || [],
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      if (data.cart) {
+        setCart(data.cart);
+      }
+    } catch (err: any) {
+      const errorMessage: ChatMessageItem = {
+        id: `err_${Date.now()}`,
+        role: "assistant",
+        content: `⚠️ Error: ${err.message || "An unexpected error occurred."}`,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Direct Add To Cart action trigger from Product Card
+  const handleAddToCart = async (productId: string) => {
+    await sendMessage(`Add product ID ${productId} to my shopping cart.`);
+    showToast("Added item to cart!");
+  };
+
+  // Ask Details action trigger from Product Card
+  const handleAskDetails = (productName: string) => {
+    sendMessage(`Tell me full specifications, real-time inventory count, and matching accessories for "${productName}".`);
+  };
+
+  // Reset conversation
+  const handleReset = () => {
+    const newSid = `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    localStorage.setItem("flow_session_id", newSid);
+    setSessionId(newSid);
+    setMessages([INITIAL_GREETING]);
+  };
+
+  const cartItemCount = cart?.itemCount || 0;
+
+  return (
+    <div className="relative flex flex-col h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 py-4 sm:px-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-20 right-6 z-50 rounded-xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 px-4 py-2.5 text-xs font-semibold shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3">
+          <div className="flex items-center gap-2">
+            <Check className="h-3.5 w-3.5 text-emerald-400" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Top Controls Bar */}
+      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-cyan-400 text-white shadow-md shadow-indigo-500/20">
+            <Bot className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-sm text-white">FlowCommerce Copilot</h2>
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] font-mono text-zinc-400">stealth/ox-alpha</span>
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Bounded Execution • Server-Gated Payments • Live Inventory
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Reset Conversation */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReset}
+            className="h-8 px-2.5 text-xs border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+            title="Reset conversation"
+          >
+            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+            <span className="hidden sm:inline">Reset</span>
+          </Button>
+
+          {/* Cart Drawer Trigger */}
+          <Button
+            onClick={() => setIsCartOpen(true)}
+            className="relative h-8 px-3 text-xs bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all font-semibold"
+          >
+            <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
+            <span>Cart</span>
+            {cartItemCount > 0 && (
+              <span className="ml-1.5 rounded-full bg-indigo-500 px-1.5 py-0.2 text-[10px] font-bold text-white">
+                {cartItemCount}
+              </span>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Messages Scroll Area */}
+      <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4 scroll-smooth">
+        {messages.map((message) => (
+          <ChatMessage
+            key={message.id}
+            message={message}
+            onAddToCart={handleAddToCart}
+            onAskDetails={handleAskDetails}
+          />
+        ))}
+
+        {/* Typing / Reasoning Indicator */}
+        {isLoading && (
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-2xl rounded-tl-sm border border-zinc-800 bg-zinc-900/70 px-4 py-2.5 text-xs text-zinc-400">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+              <span>Querying PostgreSQL inventory & reasoning recommendation...</span>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Fixed Bottom Area */}
+      <div className="pt-2 shrink-0">
+        <ChatInput onSendMessage={sendMessage} isLoading={isLoading} />
+      </div>
+
+      {/* Cart Slide-Over Drawer */}
+      <CartDrawer
+        cart={cart}
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        onCheckoutPrompt={() => sendMessage("I would like to review my cart and proceed to checkout.")}
+      />
+    </div>
+  );
+}

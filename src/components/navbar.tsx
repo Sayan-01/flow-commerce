@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, ShieldCheck, Store, Sparkles, ShoppingBag } from "lucide-react";
+import { Bot, ShieldCheck, Store, Sparkles, ShoppingBag, LogIn, LogOut } from "lucide-react";
+import type { Session } from "next-auth";
+import { Sign_Out } from "../../server/auth/auth";
 
-export function Navbar() {
+interface NavbarProps {
+  session?: Session | null;
+}
+
+export function Navbar({ session }: NavbarProps) {
   const pathname = usePathname();
 
   const navLinks = [
@@ -18,7 +24,10 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200/80 bg-white/85 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/85">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 group"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-cyan-400 text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-200">
             <ShoppingBag className="h-5 w-5" />
           </div>
@@ -59,14 +68,43 @@ export function Navbar() {
 
         {/* CTA Actions */}
         <div className="flex items-center gap-3">
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-indigo-500 hover:to-blue-500 hover:shadow-md hover:shadow-indigo-500/20 active:scale-98 transition-all"
-          >
-            <Bot className="h-4 w-4" />
-            <span className="hidden sm:inline">Start Chat Shopping</span>
-            <span className="sm:hidden">Chat</span>
-          </Link>
+          
+
+          {session?.user ? (
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-indigo-500 hover:to-blue-500 hover:shadow-md hover:shadow-indigo-500/20 active:scale-98 transition-all">
+                {session.user.image ? (
+                  <img
+                    src={session.user.image}
+                    alt={session.user.name || "User"}
+                    className="h-6 w-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 to-blue-600 text-[11px] font-semibold text-white">
+                    {session.user.name?.charAt(0)?.toUpperCase() || "U"}
+                  </div>
+                )}
+                <span className="hidden sm:inline text-xs font-medium text-zinc-700 dark:text-zinc-300 max-w-[100px] truncate">{session.user.name?.split(" ")[0] || "User"}</span>
+              </div>
+              <form action={Sign_Out}>
+                <button
+                  type="submit"
+                  title="Sign out"
+                  className="inline-flex items-center justify-center h-9 w-9 rounded-xl border border-zinc-200/80 bg-white/80 text-zinc-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:border-zinc-800/80 dark:bg-zinc-900/80 dark:text-zinc-400 dark:hover:bg-red-950/40 dark:hover:text-red-400 dark:hover:border-red-900/50 transition-all cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </form>
+            </div>
+          ) : (
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-indigo-500 hover:to-blue-500 hover:shadow-md hover:shadow-indigo-500/20 active:scale-98 transition-all"
+            >
+              <LogIn className="h-4 w-4" />
+              <span>Log in</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>

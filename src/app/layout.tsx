@@ -7,17 +7,22 @@ const sora = Sora({
 });
 
 import { Navbar } from "@/components/navbar";
+import { auth } from "../../auth";
 
 export const metadata: Metadata = {
   title: "FlowCommerce — AI Sales & Checkout Shopping Agent",
   description: "Agentic commerce with bounded server-validated guardrails, Razorpay checkout, and merchant AI revenue analytics.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+  console.log(session?.user);
+  
+
   return (
     <html
       lang="en"
@@ -25,9 +30,9 @@ export default function RootLayout({
     >
       <body
         cz-shortcut-listen="true"
-        className="min-h-full flex flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
+        className="min-h-full dark flex flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
       >
-        <Navbar />
+        <Navbar session={session} />
         <main className="flex-1 flex flex-col">{children}</main>
       </body>
     </html>

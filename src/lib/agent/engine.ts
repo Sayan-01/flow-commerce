@@ -175,7 +175,119 @@ async function runFallbackAgentEngine(
   const latestMessage = messages[messages.length - 1]?.content || "";
   const lower = latestMessage.toLowerCase();
 
-  // 1. Detect Search or Recommendation intent
+  // 1. Detect Direct Add to Cart by ID or name
+  if (lower.includes("add") || lower.includes("buy") || lower.includes("put in") || lower.includes("add to cart")) {
+    // Check if product ID is explicitly passed like "Add product ID cm... to my shopping cart"
+    const idMatch = latestMessage.match(/(?:product id|id)\s*([a-zA-Z0-9_-]+)/i);
+    let productId = idMatch ? idMatch[1] : undefined;
+
+    if (!productId) {
+      // Try finding product by keywords in the message
+      const searchResult = await executeAgentTool("searchProducts", { query: latestMessage.replace(/add|to|my|cart|shopping|please|buy/gi, "").trim(), inStockOnly: true }, { sessionId });
+      if (searchResult.products && searchResult.products.length > 0) {
+        productId = searchResult.products[0].id;
+      }
+    }
+
+    if (productId) {
+      const addResult = await executeAgentTool(
+        "addToCart",
+        { productId, quantity: 1, sessionId },
+        { sessionId }
+      );
+
+      toolExecutions.push({
+        id: `call_${Date.now()}_add`,
+        name: "addToCart",
+        args: { productId, quantity: 1, sessionId },
+        result: addResult,
+      });
+
+      if (addResult.success) {
+        // Generate an upsell recommendation for the user
+        const recs = await executeAgentTool("getRecommendations", { sessionId }, { sessionId });
+        toolExecutions.push({
+          id: `call_${Date.now()}_recs`,
+          name: "getRecommendations",
+          args: { sessionId },
+          result: recs,
+        });
+
+        let reply = `✅ **Added to cart**: ${addResult.message}\n\n`;
+
+        if (recs.recommendations && recs.recommendations.length > 0) {
+          const topRec = recs.recommendations[0];
+          reply += `✨ **AI Upsell Recommendation**:\n` +
+            `Would you like to pair this with the **${topRec.name}** for **₹${topRec.price.toLocaleString("en-IN")}**?\n` +
+            `> *Reason: ${topRec.reason}*\n\n` +
+            `You can click **Add** in the recommendation card or check your updated cart drawer on the right!`;
+        } else {
+          reply += `Your cart has been updated. Open the Cart Drawer to review your items and proceed to checkout!`;
+        }
+
+        return { reply, toolExecutions };
+      } else {
+        return {
+          reply: `⚠️ Could not add to cart: ${addResult.error || "Item is currently unavailable or exceeds stock."}`,
+          toolExecutions,
+        };
+      }
+    }
+  }
+
+  // 2. Detect Remove from Cart
+  if (lower.includes("remove") || lower.includes("delete from cart") || lower.includes("clear item")) {
+    const idMatch = latestMessage.match(/(?:product id|id)\s*([a-zA-Z0-9_-]+)/i);
+    if (idMatch) {
+      const removeResult = await executeAgentTool("removeFromCart", { productId: idMatch[1], sessionId }, { sessionId });
+      toolExecutions.push({
+        id: `call_${Date.now()}_remove`,
+        name: "removeFromCart",
+        args: { productId: idMatch[1], sessionId },
+        result: removeResult,
+      });
+      return {
+        reply: `🗑️ ${removeResult.message || "Item has been removed from your shopping cart."}`,
+        toolExecutions,
+      };
+    }
+  }
+
+  // 3. Detect Cart Total or Review Request
+  if (lower.includes("cart") && (lower.includes("total") || lower.includes("what") || lower.includes("show") || lower.includes("review") || lower.includes("checkout"))) {
+    const cartResult = await executeAgentTool("calculateTotal", { sessionId }, { sessionId });
+    toolExecutions.push({
+      id: `call_${Date.now()}_total`,
+      name: "calculateTotal",
+      args: { sessionId },
+      result: cartResult,
+    });
+
+    if (!cartResult || cartResult.itemCount === 0 || !Array.isArray(cartResult.items)) {
+      return {
+        reply: `Your shopping cart is currently empty! Tell me what tech gadgets or developer gear you are looking for and I'll find the best in-stock matches.`,
+        toolExecutions,
+      };
+    }
+
+    const items = cartResult.items as Array<any>;
+    const subtotal = Number(cartResult.subtotal || 0);
+    const totalAmount = Number(cartResult.totalAmount || subtotal);
+
+    let reply = `🛒 **Cart Summary (${cartResult.itemCount} items)**:\n\n`;
+    for (const it of items) {
+      const lineTotal = Number(it.lineTotal || it.subtotal || (it.price || it.unitPrice || 0) * (it.quantity || 1));
+      reply += `* **${it.name}** × ${it.quantity} — ₹${lineTotal.toLocaleString("en-IN")}\n`;
+    }
+    reply += `\n**Subtotal**: ₹${subtotal.toLocaleString("en-IN")}\n` +
+      `**Shipping**: Free Express Delivery\n` +
+      `**Total Amount**: **₹${totalAmount.toLocaleString("en-IN")}**\n\n` +
+      `Ready to proceed? Open the cart drawer to complete checkout with deterministic server verification.`;
+
+    return { reply, toolExecutions };
+  }
+
+  // 4. Detect Search / Discovery / Recommendations
   if (
     lower.includes("laptop") ||
     lower.includes("keyboard") ||
@@ -188,16 +300,18 @@ async function runFallbackAgentEngine(
     lower.includes("recommend") ||
     lower.includes("coding") ||
     lower.includes("price") ||
-    lower.includes("under")
+    lower.includes("under") ||
+    lower.includes("accessories")
   ) {
     let category: string | undefined = undefined;
     if (lower.includes("laptop")) category = "Laptops";
     else if (lower.includes("keyboard") || lower.includes("mouse")) category = "Keyboards & Mice";
     else if (lower.includes("audio") || lower.includes("headphone") || lower.includes("earphone")) category = "Audio";
+    else if (lower.includes("accessories") || lower.includes("dock") || lower.includes("hub")) category = "Accessories";
 
     // Extract price if mentioned (e.g. 60k, 80000)
     let maxPrice: number | undefined = undefined;
-    const priceMatch = lower.match(/(?:under|below|budget)\s*(?:₹|rs\.?)?\s*(\d+)(?:k|000)?/);
+    const priceMatch = lower.match(/(?:under|below|budget)\s*(?:₹|rs\.?)?\s*(\d+)(?:k|000)?/i);
     if (priceMatch) {
       const rawNum = parseInt(priceMatch[1]);
       maxPrice = lower.includes("k") || rawNum < 1000 ? rawNum * 1000 : rawNum;
@@ -226,56 +340,40 @@ async function runFallbackAgentEngine(
     }
 
     const topProduct = products[0];
-    const complementary = products.find((p: any) => p.category !== topProduct.category) || products[1];
 
-    let reply = `Here is our top verified match based on your requirements:\n\n` +
+    // Generate upsell recommendations with explainable reason
+    const recsResult = await executeAgentTool("getRecommendations", { sessionId, category: topProduct.category }, { sessionId });
+    toolExecutions.push({
+      id: `call_${Date.now()}_recs`,
+      name: "getRecommendations",
+      args: { sessionId, category: topProduct.category },
+      result: recsResult,
+    });
+
+    const topUpsell = recsResult.recommendations?.[0];
+
+    let reply = `Here is our top verified match from the inventory:\n\n` +
       `### 💻 **${topProduct.name}**\n` +
       `* **Price**: **₹${topProduct.price.toLocaleString("en-IN")}**\n` +
       `* **Stock**: **${topProduct.stock} units** available in database\n` +
       `* **Category**: \`${topProduct.category}\`\n` +
       `* **Overview**: ${topProduct.description}\n\n`;
 
-    if (complementary) {
-      reply += `✨ **Reasoned Pairing Suggestion**:\n` +
-        `I recommend pairing this with the **${complementary.name}** (₹${complementary.price.toLocaleString("en-IN")}).\n` +
-        `> *Reason: Developers and power users frequently bundle portable high-tactility accessories for increased productivity.*\n\n`;
+    if (topUpsell) {
+      reply += `✨ **AI Upsell Pairing**:\n` +
+        `I recommend pairing this with the **${topUpsell.name}** (₹${topUpsell.price.toLocaleString("en-IN")}).\n` +
+        `> *Reason: ${topUpsell.reason}*\n\n`;
     }
 
-    reply += `Would you like me to add the **${topProduct.name}** to your cart?`;
+    reply += `Would you like me to add **${topProduct.name}** to your shopping cart?`;
 
     return { reply, toolExecutions };
   }
 
-  // 2. Detect Add to Cart intent
-  if (lower.includes("add") || lower.includes("buy") || lower.includes("put in cart")) {
-    // Search first active product
-    const searchResult = await executeAgentTool("searchProducts", { inStockOnly: true }, { sessionId });
-    const productToAdd = searchResult.products?.[0];
-
-    if (productToAdd) {
-      const addResult = await executeAgentTool(
-        "addToCart",
-        { productId: productToAdd.id, quantity: 1, sessionId },
-        { sessionId }
-      );
-
-      toolExecutions.push({
-        id: `call_${Date.now()}_add`,
-        name: "addToCart",
-        args: { productId: productToAdd.id, quantity: 1, sessionId },
-        result: addResult,
-      });
-
-      return {
-        reply: `✅ Successfully added **${productToAdd.name}** (₹${productToAdd.price.toLocaleString("en-IN")}) to your cart! You can view your updated subtotal in the cart drawer on the right.`,
-        toolExecutions,
-      };
-    }
-  }
-
   // Default Greeting / General Query
   return {
-    reply: `Hello! I am your **FlowCommerce AI Shopping Copilot**. I can help you search our verified tech inventory, recommend matching accessories with explainable reasoning, and check real-time stock.\n\nTry asking me:\n* *"Find a developer laptop with 32GB RAM under ₹80,000"*\n* *"Recommend an ergonomic mechanical keyboard for fast typing"*\n* *"Show me wireless noise-canceling headphones"*`,
+    reply: `Hello! I am your **FlowCommerce AI Shopping Copilot**. I can help you search our verified tech inventory, recommend matching accessories with explainable reasoning, manage your cart, and check real-time stock.\n\nTry asking me:\n* *"Find a developer laptop with 32GB RAM under ₹80,000"*\n* *"Recommend an ergonomic mechanical keyboard for fast typing"*\n* *"What accessories pair best with my setup?"*`,
     toolExecutions,
   };
 }
+

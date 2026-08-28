@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ChatMessage } from "./chat-message";
 import { ChatInput } from "./chat-input";
 import { CartDrawer } from "./cart-drawer";
+import { CheckoutModal, ProposedOrderData } from "./checkout-modal";
 import { ChatMessageItem, CartState } from "./types";
 
 interface ChatContainerProps {
@@ -38,6 +39,9 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
   const [messages, setMessages] = useState<ChatMessageItem[]>([INITIAL_GREETING]);
   const [cart, setCart] = useState<CartState | null>(initialCart);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [proposedOrder, setProposedOrder] = useState<ProposedOrderData | null>(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
+  const [isProposingOrder, setIsProposingOrder] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasProcessedInitialPrompt, setHasProcessedInitialPrompt] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -49,7 +53,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Initialize Session ID
+  // Initialize Session ID and fetch initial cart state
   useEffect(() => {
     let sid = localStorage.getItem("flow_session_id");
     if (!sid) {
@@ -57,7 +61,20 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
       localStorage.setItem("flow_session_id", sid);
     }
     setSessionId(sid);
+    fetchCart(sid);
   }, []);
+
+  const fetchCart = async (sid: string) => {
+    try {
+      const res = await fetch(`/api/cart?sessionId=${sid}`);
+      const data = await res.json();
+      if (data.success && data.cart) {
+        setCart(data.cart);
+      }
+    } catch (e) {
+      console.error("Failed to load initial cart:", e);
+    }
+  };
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -129,10 +146,132 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
     }
   };
 
-  // Direct Add To Cart action trigger from Product Card
+  // Direct Add To Cart action trigger
   const handleAddToCart = async (productId: string) => {
-    await sendMessage(`Add product ID ${productId} to my shopping cart.`);
-    showToast("Added item to cart!");
+    try {
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "add",
+          productId,
+          quantity: 1,
+          sessionId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.cart) {
+        setCart(data.cart);
+        showToast(data.message || "Item added to cart!");
+      } else {
+        showToast(data.error || "Could not add item to cart.");
+      }
+    } catch (e: any) {
+      showToast(e.message || "Failed to update cart.");
+    }
+  };
+
+  // Direct Update Quantity in Cart
+  const handleUpdateQuantity = async (productId: string, quantity: number) => {
+    try {
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update",
+          productId,
+          quantity,
+          sessionId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.cart) {
+        setCart(data.cart);
+        showToast(data.message || "Cart updated.");
+      } else {
+        showToast(data.error || "Failed to update quantity.");
+      }
+    } catch (e: any) {
+      showToast(e.message || "Failed to update quantity.");
+    }
+  };
+
+  // Direct Remove Item from Cart
+  const handleRemoveItem = async (productId: string) => {
+    try {
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "remove",
+          productId,
+          sessionId,
+          removeAll: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.cart) {
+        setCart(data.cart);
+        showToast(data.message || "Item removed from cart.");
+      } else {
+        showToast(data.error || "Failed to remove item.");
+      }
+    } catch (e: any) {
+      showToast(e.message || "Failed to remove item.");
+    }
+  };
+
+  // Initiate Checkout Proposal (Opens Confirmation Gate Modal)
+  const handleInitiateCheckout = async () => {
+    if (isProposingOrder) return;
+    setIsProposingOrder(true);
+    setIsCartOpen(false);
+
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          cartId: cart?.id,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to create order proposal.");
+      }
+
+      setProposedOrder(data.order);
+      setIsCheckoutOpen(true);
+    } catch (err: any) {
+      showToast(err.message || "Failed to prepare order.");
+      const errorMsg: ChatMessageItem = {
+        id: `err_${Date.now()}`,
+        role: "assistant",
+        content: `⚠️ Order proposal error: ${err.message || "Could not prepare checkout."}`,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsProposingOrder(false);
+    }
+  };
+
+  // Payment Callback Handler
+  const handlePaymentSuccess = async (paymentDetails: any) => {
+    showToast("🎉 Payment authorized successfully!");
+
+    const confirmationMsg: ChatMessageItem = {
+      id: `confirm_${Date.now()}`,
+      role: "assistant",
+      content: `✅ **Payment Verified & Authorized!**\n\n* **Order ID**: \`#${paymentDetails.orderId?.slice(-8) || proposedOrder?.id?.slice(-8) || "SUCCESS"}\`\n* **Payment Reference**: \`${paymentDetails.razorpay_payment_id || "TEST_CAPTURED"}\`\n* **Status**: \`Awaiting Fulfillment (PAID)\`\n\nYour order has been recorded with full audit trail in our database. Thank you for shopping with **FlowCommerce**!`,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, confirmationMsg]);
+    fetchCart(sessionId);
   };
 
   // Ask Details action trigger from Product Card
@@ -146,6 +285,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
     localStorage.setItem("flow_session_id", newSid);
     setSessionId(newSid);
     setMessages([INITIAL_GREETING]);
+    fetchCart(newSid);
   };
 
   const cartItemCount = cart?.itemCount || 0;
@@ -186,7 +326,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
             variant="outline"
             size="sm"
             onClick={handleReset}
-            className="h-8 px-2.5 text-xs border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
+            className="h-8 px-2.5 text-xs border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 cursor-pointer"
             title="Reset conversation"
           >
             <RotateCcw className="h-3.5 w-3.5 mr-1" />
@@ -196,7 +336,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
           {/* Cart Drawer Trigger */}
           <Button
             onClick={() => setIsCartOpen(true)}
-            className="relative h-8 px-3 text-xs bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all font-semibold"
+            className="relative h-8 px-3 text-xs bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all font-semibold cursor-pointer"
           >
             <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
             <span>Cart</span>
@@ -246,8 +386,20 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
         cart={cart}
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
-        onCheckoutPrompt={() => sendMessage("I would like to review my cart and proceed to checkout.")}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemoveItem={handleRemoveItem}
+        onAddToCart={handleAddToCart}
+        onCheckoutPrompt={handleInitiateCheckout}
+      />
+
+      {/* Checkout Summary & Confirmation Gate Modal */}
+      <CheckoutModal
+        order={proposedOrder}
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        onPaymentSuccess={handlePaymentSuccess}
       />
     </div>
   );
 }
+

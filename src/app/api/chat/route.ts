@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 6. Fetch latest active cart state
+    // 6. Fetch latest active cart state & recommendations
     const cart = await prisma.cart.findUnique({
       where: { sessionId },
       include: {
@@ -92,25 +92,39 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const formattedCart = cart
-      ? {
-          id: cart.id,
-          status: cart.status,
-          itemCount: cart.items.reduce((acc, it) => acc + it.quantity, 0),
-          totalAmount: cart.items.reduce((acc, it) => acc + it.priceAtAdd * it.quantity, 0),
-          items: cart.items.map((it) => ({
-            id: it.id,
-            productId: it.productId,
-            name: it.product.name,
-            price: it.priceAtAdd,
-            quantity: it.quantity,
-            subtotal: it.priceAtAdd * it.quantity,
-            stock: it.product.stock,
-            category: it.product.category,
-            imageUrl: it.product.imageUrl,
-          })),
-        }
-      : null;
+    let formattedCart = null;
+    if (cart) {
+      const items = cart.items.map((it) => ({
+        id: it.id,
+        productId: it.productId,
+        name: it.product.name,
+        price: it.priceAtAdd,
+        quantity: it.quantity,
+        subtotal: it.priceAtAdd * it.quantity,
+        stock: it.product.stock,
+        category: it.product.category,
+        imageUrl: it.product.imageUrl,
+      }));
+
+      const subtotal = items.reduce((acc, it) => acc + it.subtotal, 0);
+      const discount = 0;
+      const totalAmount = subtotal - discount;
+
+      // Extract recommendations if executed in tools or fetch fresh
+      const recExecution = agentResult.toolExecutions.find((t) => t.name === "getRecommendations");
+      const recommendations = recExecution?.result?.recommendations || [];
+
+      formattedCart = {
+        id: cart.id,
+        status: cart.status,
+        itemCount: items.reduce((acc, it) => acc + it.quantity, 0),
+        subtotal,
+        discount,
+        totalAmount,
+        items,
+        recommendations,
+      };
+    }
 
     return NextResponse.json({
       success: true,

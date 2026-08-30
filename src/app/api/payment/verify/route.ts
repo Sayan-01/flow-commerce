@@ -1,23 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import Razorpay from "razorpay";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      orderId,
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      sessionId: requestedSessionId,
-    } = body;
+    const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature, sessionId: requestedSessionId } = body;
 
     if (!orderId || !razorpay_order_id || !razorpay_payment_id) {
-      return NextResponse.json(
-        { success: false, error: "Missing required payment verification parameters." },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Missing required payment verification parameters." }, { status: 400 });
     }
 
     // 1. Fetch Order from PostgreSQL
@@ -33,35 +25,20 @@ export async function POST(request: NextRequest) {
     });
 
     if (!order) {
-      return NextResponse.json(
-        { success: false, error: "Order not found." },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false, error: "Order not found." }, { status: 404 });
     }
 
     // 2. Cryptographic Signature Verification (HMAC-SHA256)
-    const secret = process.env.RAZORPAY_KEY_SECRET;
+    const secret = process.env.RAZORPAY_SECRET_ID || process.env.RAZORPAY_KEY_SECRET;
     let isSignatureValid = false;
 
-    if (
-      secret &&
-      !secret.includes("placeholder") &&
-      razorpay_signature &&
-      !razorpay_signature.startsWith("sig_test_")
-    ) {
-      const generatedSignature = crypto
-        .createHmac("sha256", secret)
-        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-        .digest("hex");
+    if (secret && !secret.includes("placeholder") && razorpay_signature && !razorpay_signature.startsWith("sig_test_")) {
+      const generatedSignature = crypto.createHmac("sha256", secret).update(`${razorpay_order_id}|${razorpay_payment_id}`).digest("hex");
 
       isSignatureValid = generatedSignature === razorpay_signature;
     } else {
       // In Test Mode / Sandbox Simulation, allow valid test signatures
-      isSignatureValid =
-        razorpay_signature?.startsWith("sig_test_") ||
-        razorpay_payment_id?.startsWith("pay_test_") ||
-        !secret ||
-        secret.includes("placeholder");
+      isSignatureValid = razorpay_signature?.startsWith("sig_test_") || razorpay_payment_id?.startsWith("pay_test_") || !secret || secret.includes("placeholder");
     }
 
     if (!isSignatureValid) {
@@ -82,10 +59,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return NextResponse.json(
-        { success: false, error: "Invalid payment signature. Verification failed." },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Invalid payment signature. Verification failed." }, { status: 400 });
     }
 
     // 3. Atomically Decrement Inventory Stock for each OrderItem
@@ -156,9 +130,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (conversation) {
-        const itemSummary = order.items
-          .map((it) => `${it.quantity}x ${it.product.name}`)
-          .join(", ");
+        const itemSummary = order.items.map((it) => `${it.quantity}x ${it.product.name}`).join(", ");
 
         await prisma.message.create({
           data: {
@@ -215,9 +187,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error verifying payment signature:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to verify payment." },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message || "Failed to verify payment." }, { status: 500 });
   }
 }
+
+

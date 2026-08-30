@@ -11,9 +11,10 @@ interface ChatInputProps {
 }
 
 const QUICK_PROMPT_SUGGESTIONS = [
-  "💻 Laptops for coding under ₹80,000",
-  "⌨️ Mechanical keyboards with high tactility",
-  "🎧 Noise-canceling wireless headphones",
+  "🖥️ FHD IPS developer monitor under ₹10,000",
+  "⌨️ Mechanical keyboards under ₹4,000",
+  "🎧 ANC headphones & studio mics",
+  "🔌 GaN fast chargers & USB-C docks",
   "🛒 Show my current cart",
 ];
 
@@ -85,7 +86,7 @@ export function ChatInput({
             e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Ask for developer gear, budget laptops, or accessory pairings..."
+          placeholder="Ask for mechanical keyboards, studio mics, GaN chargers, or desk setups..."
           disabled={isLoading || disabled}
           rows={1}
           className="max-h-32 min-h-[40px] w-full resize-none bg-transparent px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none disabled:opacity-50"

@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  MessageSquare,
-  Wrench,
-  Sparkles,
-  ShieldCheck,
-  CheckCheck,
-  ArrowRight,
-} from "lucide-react";
+import { MessageSquare, Wrench, Sparkles, ShieldCheck, CheckCheck, ArrowRight } from "lucide-react";
 
 const STEPS = [
   {
@@ -70,12 +63,8 @@ export function AgentWorkflow() {
           <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 backdrop-blur-sm mb-3">
             <span>Deterministic Execution Flow</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
-            How Agentic Commerce Works
-          </h2>
-          <p className="mt-3 text-sm sm:text-base text-zinc-400">
-            A zero-hallucination 5-phase loop from conversational intent to cryptographically verified checkout.
-          </p>
+          <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">How Agentic Commerce Works</h2>
+          <p className="mt-3 text-sm sm:text-base text-zinc-400">A zero-hallucination 5-phase loop from conversational intent to cryptographically verified checkout.</p>
         </div>
 
         {/* Steps Grid */}
@@ -90,34 +79,24 @@ export function AgentWorkflow() {
                 <div>
                   {/* Step Number & Icon */}
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-black tracking-widest text-zinc-500 group-hover:text-indigo-400 transition-colors">
-                      STEP {s.step}
-                    </span>
+                    <span className="text-xs font-black tracking-widest text-zinc-500 group-hover:text-indigo-400 transition-colors">STEP {s.step}</span>
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700/60">
                       <Icon className={`h-4 w-4 ${s.color}`} />
                     </div>
                   </div>
 
                   {/* Badge */}
-                  <span className="inline-block rounded-md bg-zinc-800/80 px-2 py-0.5 text-[10px] font-semibold text-zinc-300 mb-2 border border-zinc-700/50">
-                    {s.badge}
-                  </span>
+                  <span className="inline-block rounded-md bg-zinc-800/80 px-2 py-0.5 text-[10px] font-semibold text-zinc-300 mb-2 border border-zinc-700/50">{s.badge}</span>
 
                   {/* Title */}
-                  <h3 className="font-bold text-sm text-white group-hover:text-zinc-100">
-                    {s.title}
-                  </h3>
+                  <h3 className="font-bold text-sm text-white group-hover:text-zinc-100">{s.title}</h3>
 
                   {/* Description */}
-                  <p className="mt-2 text-xs leading-relaxed text-zinc-400">
-                    {s.desc}
-                  </p>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-400">{s.desc}</p>
                 </div>
 
                 {/* Example Payload Snippet */}
-                <div className="mt-4 pt-3 border-t border-zinc-800/60 font-mono text-[10px] text-zinc-400 bg-zinc-950/60 p-2 rounded-lg border border-zinc-800/80 truncate">
-                  {s.example}
-                </div>
+                <div className="mt-4 pt-3 border-t border-zinc-800/60 font-mono text-[10px] text-zinc-400 bg-zinc-950/60 p-2 rounded-lg border border-zinc-800/80 truncate">{s.example}</div>
               </div>
             );
           })}

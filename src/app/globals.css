@@ -128,3 +128,17 @@
     
   }
 }
+
+.box_1::-webkit-scrollbar {
+  width: 6px;
+  position: absolute; /* Ensures the scrollbar behaves like an absolute element */
+}
+
+.box_1::-webkit-scrollbar-track {
+  background: #27272700;
+  /* border-radius: 50px; */
+}
+.box_1::-webkit-scrollbar-thumb {
+  background: #515151;
+  border-radius: 50px;
+}

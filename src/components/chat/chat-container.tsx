@@ -27,7 +27,7 @@ interface ChatContainerProps {
 const INITIAL_GREETING: ChatMessageItem = {
   id: "msg_welcome",
   role: "assistant",
-  content: `👋 Welcome to FlowCommerce AI Sales Copilot!\n\nI can help you explore our verified catalog, check live inventory counts, and propose reasoned upsells tailored to your setup.\n\nWhat kind of developer gear, laptop, or workspace accessories are you looking for today?`,
+  content: `👋 Welcome to FlowCommerce AI Sales Copilot!\n\nI can help you explore our verified catalog, check live inventory counts, and propose reasoned upsells tailored to your setup.\n\nWhat kind of developer gear, mechanical keyboards, monitors, audio, or workspace accessories are you looking for today?`,
   createdAt: new Date().toISOString(),
 };
 
@@ -291,7 +291,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
   const cartItemCount = cart?.itemCount || 0;
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-4rem)] max-w-5xl mx-auto px-4 py-4 sm:px-6">
+    <div className="relative flex flex-col h-[calc(100vh-65px)] max-w-5xl mx-auto px-4 py-4 sm:px-6 ">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-20 right-6 z-50 rounded-xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 px-4 py-2.5 text-xs font-semibold shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3">
@@ -314,9 +314,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
               <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[10px] font-mono text-zinc-400">stealth/ox-alpha</span>
             </div>
-            <p className="text-[11px] text-zinc-500">
-              Bounded Execution • Server-Gated Payments • Live Inventory
-            </p>
+            <p className="text-[11px] text-zinc-500">Bounded Execution • Server-Gated Payments • Live Inventory</p>
           </div>
         </div>
 
@@ -340,17 +338,13 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
           >
             <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
             <span>Cart</span>
-            {cartItemCount > 0 && (
-              <span className="ml-1.5 rounded-full bg-indigo-500 px-1.5 py-0.2 text-[10px] font-bold text-white">
-                {cartItemCount}
-              </span>
-            )}
+            {cartItemCount > 0 && <span className="ml-1.5 rounded-full bg-indigo-500 px-1.5 py-0.2 text-[10px] font-bold text-white">{cartItemCount}</span>}
           </Button>
         </div>
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-4 scroll-smooth">
+      <div className="flex-1 overflow-y-auto  box_1 space-y-4 pr-2 pb-4 scroll-smooth">
         {messages.map((message) => (
           <ChatMessage
             key={message.id}
@@ -378,7 +372,10 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
 
       {/* Input Fixed Bottom Area */}
       <div className="pt-2 shrink-0">
-        <ChatInput onSendMessage={sendMessage} isLoading={isLoading} />
+        <ChatInput
+          onSendMessage={sendMessage}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Cart Slide-Over Drawer */}

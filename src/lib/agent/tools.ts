@@ -261,6 +261,11 @@ export async function generateUpsellRecommendations(sessionId: string, preferred
   const cartProductIds = cart?.items.map((i) => i.productId) || [];
   const cartCategories = cart?.items.map((i) => i.product.category) || [];
 
+  // If cart is empty and no preferred category was explicitly requested, do not force-generate upsells
+  if (cartProductIds.length === 0 && !preferredCategory) {
+    return [];
+  }
+
   // Determine complementary category logic
   let targetCategory: string | undefined = preferredCategory;
   let defaultReason = "Popular verified developer essential with high ratings.";
@@ -319,6 +324,32 @@ export async function generateUpsellRecommendations(sessionId: string, preferred
   const recommendations = [];
 
   for (const product of candidates) {
+    // Check if an active unaccepted recommendation already exists for this conversation
+    const existingRec = await prisma.recommendation.findFirst({
+      where: {
+        conversationId: conversation.id,
+        productId: product.id,
+        accepted: false,
+      },
+    });
+
+    if (existingRec) {
+      recommendations.push({
+        id: existingRec.id,
+        productId: product.id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        category: product.category,
+        stock: product.stock,
+        imageUrl: product.imageUrl,
+        type: "UPSELL" as const,
+        reason: existingRec.reason,
+        accepted: false,
+      });
+      continue;
+    }
+
     // Determine tailored reason
     let reason = defaultReason;
     if (product.category.toLowerCase().includes("keyboard")) {
@@ -347,6 +378,7 @@ export async function generateUpsellRecommendations(sessionId: string, preferred
     await prisma.auditLog.create({
       data: {
         actor: "AGENT",
+        merchantId: product.merchantId,
         action: "RECOMMENDATION_CREATED",
         entityType: "RECOMMENDATION",
         entityId: recRecord.id,
@@ -643,6 +675,7 @@ export async function executeAgentTool(
       await prisma.auditLog.create({
         data: {
           actor: "AGENT",
+          merchantId: product.merchantId,
           action: "ADD_TO_CART",
           entityType: "CART",
           entityId: cart.id,

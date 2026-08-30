@@ -1,22 +1,8 @@
 import React from "react";
 import Link from "next/link";
-import {
-  Bot,
-  Store,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  Zap,
-  Lock,
-  BarChart3,
-  Terminal,
-} from "lucide-react";
+import { Bot, Store, Sparkles, ArrowRight, ShieldCheck, Zap, Lock, BarChart3, Terminal } from "lucide-react";
 
-const SAMPLE_PROMPTS = [
-  "Find a developer laptop with 32GB RAM under ₹80k",
-  "Recommend a mechanical keyboard for fast typing",
-  "Build an ergonomic desk setup with matching accessories",
-];
+const SAMPLE_PROMPTS = ["Find a developer laptop with 32GB RAM under ₹80k", "Recommend a mechanical keyboard for fast typing", "Build an ergonomic desk setup with matching accessories"];
 
 const ASSURANCE_BADGES = [
   {
@@ -70,17 +56,13 @@ export function HeroSection() {
 
         {/* Main Headline */}
         <h1 className="text-4xl font-black tracking-tight text-white sm:text-6xl sm:leading-[1.12] lg:text-7xl">
-          Conversational Sales with{" "}
-          <span className="bg-gradient-to-r from-indigo-400 via-cyan-300 to-blue-400 bg-clip-text text-transparent">
-            Bounded AI Execution
-          </span>
+          Conversational Sales with <span className="bg-gradient-to-r from-indigo-400 via-cyan-300 to-blue-400 bg-clip-text text-transparent">Bounded AI Execution</span>
         </h1>
 
         {/* Subtitle */}
         <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-zinc-400 sm:text-lg lg:text-xl">
           An autonomous shopping copilot that reasons, validates inventory, and executes upsells in real-time. Built with{" "}
-          <strong className="text-zinc-200 font-semibold">zero-hallucination server guardrails</strong>, explicit human confirmation
-          gates, and verified Razorpay checkout.
+          <strong className="text-zinc-200 font-semibold">zero-hallucination server guardrails</strong>, explicit human confirmation gates, and verified Razorpay checkout.
         </p>
 
         {/* Dual Action CTAs */}

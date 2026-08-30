@@ -70,8 +70,11 @@ export async function GET(request: NextRequest) {
     const discount = 0;
     const totalAmount = subtotal - discount;
 
-    // Fetch or generate recommendations for the cart
-    const recommendations = await generateUpsellRecommendations(sessionId);
+    // Fetch existing or generate recommendations only if cart has items
+    let recommendations: any[] = [];
+    if (cart.items.length > 0) {
+      recommendations = await generateUpsellRecommendations(sessionId);
+    }
 
     return NextResponse.json({
       success: true,

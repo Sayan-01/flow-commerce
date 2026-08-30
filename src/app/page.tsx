@@ -1,12 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import {
-  HeroSection,
-  ArchitecturePillars,
-  InteractiveDemo,
-  AgentWorkflow,
-  CatalogPreview,
-  HomeFooter,
-} from "@/components/home";
+import { HeroSection, ArchitecturePillars, InteractiveDemo, AgentWorkflow, CatalogPreview, HomeFooter } from "@/components/home";
 
 export const dynamic = "force-dynamic";
 

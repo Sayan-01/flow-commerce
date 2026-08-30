@@ -2,14 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import {
-  ShoppingBag,
-  Bot,
-  Search,
-  Check,
-  Tag,
-  ArrowRight,
-} from "lucide-react";
+import { ShoppingBag, Bot, Search, Check, Tag, ArrowRight } from "lucide-react";
 import { Product } from "./types";
 
 interface CatalogPreviewProps {
@@ -23,9 +16,7 @@ export function CatalogPreview({ initialProducts = [] }: CatalogPreviewProps) {
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const filteredProducts = initialProducts.filter((product) => {
-    const matchesCategory =
-      selectedCategory === "All" ||
-      product.category.toLowerCase() === selectedCategory.toLowerCase();
+    const matchesCategory = selectedCategory === "All" || product.category.toLowerCase() === selectedCategory.toLowerCase();
     const matchesSearch =
       searchQuery.trim() === "" ||
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -44,12 +35,8 @@ export function CatalogPreview({ initialProducts = [] }: CatalogPreviewProps) {
             <ShoppingBag className="h-3.5 w-3.5" />
             <span>Live Inventory Catalog</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Explore Demo Tech Inventory
-          </h2>
-          <p className="mt-1.5 text-sm text-zinc-400 max-w-xl">
-            Query any of these items through natural conversation with the AI Agent. Real stock & pricing verified instantly.
-          </p>
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">Explore Demo Tech Inventory</h2>
+          <p className="mt-1.5 text-sm text-zinc-400 max-w-xl">Query any of these items through natural conversation with the AI Agent. Real stock & pricing verified instantly.</p>
         </div>
 
         {/* Search & Category Filter */}
@@ -73,9 +60,7 @@ export function CatalogPreview({ initialProducts = [] }: CatalogPreviewProps) {
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  selectedCategory === cat
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-zinc-400 hover:text-white hover:bg-zinc-800"
+                  selectedCategory === cat ? "bg-indigo-600 text-white shadow-sm" : "text-zinc-400 hover:text-white hover:bg-zinc-800"
                 }`}
               >
                 {cat}
@@ -111,40 +96,18 @@ export function CatalogPreview({ initialProducts = [] }: CatalogPreviewProps) {
               <div>
                 {/* Category & Stock Pill */}
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="inline-block rounded-md bg-zinc-800/90 px-2 py-0.5 text-[10px] font-semibold text-zinc-300 border border-zinc-700/50">
-                    {product.category}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${
-                      product.stock > 10
-                        ? "text-emerald-400"
-                        : product.stock > 0
-                        ? "text-amber-400"
-                        : "text-red-400"
-                    }`}
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        product.stock > 10
-                          ? "bg-emerald-400"
-                          : product.stock > 0
-                          ? "bg-amber-400"
-                          : "bg-red-400"
-                      }`}
-                    />
+                  <span className="inline-block rounded-md bg-zinc-800/90 px-2 py-0.5 text-[10px] font-semibold text-zinc-300 border border-zinc-700/50">{product.category}</span>
+                  <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${product.stock > 10 ? "text-emerald-400" : product.stock > 0 ? "text-amber-400" : "text-red-400"}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${product.stock > 10 ? "bg-emerald-400" : product.stock > 0 ? "bg-amber-400" : "bg-red-400"}`} />
                     {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
                   </span>
                 </div>
 
                 {/* Title */}
-                <h3 className="font-bold text-sm text-zinc-100 line-clamp-1 group-hover:text-indigo-300 transition-colors">
-                  {product.name}
-                </h3>
+                <h3 className="font-bold text-sm text-zinc-100 line-clamp-1 group-hover:text-indigo-300 transition-colors">{product.name}</h3>
 
                 {/* Description */}
-                <p className="mt-1.5 text-xs text-zinc-400 line-clamp-2 leading-relaxed">
-                  {product.description}
-                </p>
+                <p className="mt-1.5 text-xs text-zinc-400 line-clamp-2 leading-relaxed">{product.description}</p>
 
                 {/* Tags */}
                 <div className="mt-3 flex flex-wrap gap-1">
@@ -162,12 +125,8 @@ export function CatalogPreview({ initialProducts = [] }: CatalogPreviewProps) {
               {/* Price & Action Button */}
               <div className="mt-4 pt-3.5 border-t border-zinc-800/70 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 block">
-                    Price
-                  </span>
-                  <span className="text-base font-extrabold text-white">
-                    ₹{product.price.toLocaleString("en-IN")}
-                  </span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 block">Price</span>
+                  <span className="text-base font-extrabold text-white">₹{product.price.toLocaleString("en-IN")}</span>
                 </div>
 
                 <Link

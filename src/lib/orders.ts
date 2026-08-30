@@ -5,15 +5,7 @@ export interface OrderItemInput {
   quantity: number;
 }
 
-export async function createOrderProposal({
-  sessionId,
-  cartId,
-  customerNote,
-}: {
-  sessionId: string;
-  cartId?: string;
-  customerNote?: string;
-}) {
+export async function createOrderProposal({ sessionId, cartId, customerNote }: { sessionId: string; cartId?: string; customerNote?: string }) {
   // 1. Fetch active cart
   const cart = await prisma.cart.findUnique({
     where: cartId ? { id: cartId } : { sessionId },
@@ -326,22 +318,11 @@ export async function confirmOrderGate(orderId: string) {
 }
 
 // Razorpay Order Generator Helper (Supports live Razorpay API & test simulation)
-async function createRazorpayOrder({
-  amountInPaise,
-  receipt,
-}: {
-  amountInPaise: number;
-  receipt: string;
-}): Promise<string> {
+async function createRazorpayOrder({ amountInPaise, receipt }: { amountInPaise: number; receipt: string }): Promise<string> {
   const keyId = process.env.RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-  if (
-    keyId &&
-    keySecret &&
-    !keyId.includes("placeholder") &&
-    !keySecret.includes("placeholder")
-  ) {
+  if (keyId && keySecret && !keyId.includes("placeholder") && !keySecret.includes("placeholder")) {
     try {
       const authHeader = `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`;
       const res = await fetch("https://api.razorpay.com/v1/orders", {

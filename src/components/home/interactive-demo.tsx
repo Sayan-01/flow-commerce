@@ -2,16 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import {
-  Bot,
-  User,
-  Sparkles,
-  ShieldCheck,
-  CheckCircle2,
-  ArrowRight,
-  Zap,
-  CornerDownRight,
-} from "lucide-react";
+import { Bot, User, Sparkles, ShieldCheck, CheckCircle2, ArrowRight, Zap, CornerDownRight } from "lucide-react";
 
 export function InteractiveDemo() {
   const [upsellAccepted, setUpsellAccepted] = useState(true);
@@ -31,9 +22,7 @@ export function InteractiveDemo() {
               <span>Interactive Architecture Preview</span>
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              See the Bounded Execution in Action
-            </h2>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">See the Bounded Execution in Action</h2>
 
             <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
               Experience how the agent combines natural conversations with strict database tools, reasoned upsells, and deterministic human-in-the-loop payment gates.
@@ -41,38 +30,26 @@ export function InteractiveDemo() {
 
             <div className="mt-6 space-y-3.5">
               <div className="flex items-start gap-3">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-bold mt-0.5">
-                  1
-                </div>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-bold mt-0.5">1</div>
                 <div>
                   <h4 className="text-xs font-bold text-zinc-200">Database Tool Query</h4>
-                  <p className="text-[11px] text-zinc-400">
-                    Real-time stock checks prevent recommending unavailable items.
-                  </p>
+                  <p className="text-[11px] text-zinc-400">Real-time stock checks prevent recommending unavailable items.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold mt-0.5">
-                  2
-                </div>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold mt-0.5">2</div>
                 <div>
                   <h4 className="text-xs font-bold text-zinc-200">Reasoned Upsell Proposal</h4>
-                  <p className="text-[11px] text-zinc-400">
-                    Agent calculates compatibility and persists reason for ROI proof.
-                  </p>
+                  <p className="text-[11px] text-zinc-400">Agent calculates compatibility and persists reason for ROI proof.</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold mt-0.5">
-                  3
-                </div>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold mt-0.5">3</div>
                 <div>
                   <h4 className="text-xs font-bold text-zinc-200">Enforced Human Confirmation</h4>
-                  <p className="text-[11px] text-zinc-400">
-                    Checkout requires explicit user click; prompt injection cannot auto-pay.
-                  </p>
+                  <p className="text-[11px] text-zinc-400">Checkout requires explicit user click; prompt injection cannot auto-pay.</p>
                 </div>
               </div>
             </div>
@@ -103,9 +80,7 @@ export function InteractiveDemo() {
             <div className="space-y-3">
               {/* User Bubble */}
               <div className="flex items-start gap-2 justify-end">
-                <div className="rounded-2xl rounded-tr-sm bg-indigo-600 px-3.5 py-2 text-xs text-white max-w-[85%]">
-                  Looking for a lightweight laptop for web development under ₹90k.
-                </div>
+                <div className="rounded-2xl rounded-tr-sm bg-indigo-600 px-3.5 py-2 text-xs text-white max-w-[85%]">Looking for a lightweight laptop for web development under ₹90k.</div>
                 <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 text-[10px] shrink-0">
                   <User className="h-3.5 w-3.5" />
                 </div>
@@ -130,18 +105,14 @@ export function InteractiveDemo() {
                     <p className="text-zinc-300">
                       Add <strong className="text-white">Compact Mechanical Keyboard</strong> for +₹4,999.
                     </p>
-                    <p className="text-[10px] text-indigo-400 mt-1 italic">
-                      &ldquo;Developers frequently pair high-tactility keyboards with pro laptops for ergonomic productivity.&rdquo;
-                    </p>
+                    <p className="text-[10px] text-indigo-400 mt-1 italic">&ldquo;Developers frequently pair high-tactility keyboards with pro laptops for ergonomic productivity.&rdquo;</p>
                   </div>
 
                   {/* Simulated Human Gate */}
                   <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-2.5">
                     <div className="flex items-center justify-between text-[11px] mb-2">
                       <span className="text-zinc-400">Order Subtotal:</span>
-                      <span className="font-bold text-white">
-                        {upsellAccepted ? "₹94,998" : "₹89,999"}
-                      </span>
+                      <span className="font-bold text-white">{upsellAccepted ? "₹94,998" : "₹89,999"}</span>
                     </div>
 
                     <button

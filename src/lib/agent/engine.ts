@@ -34,7 +34,7 @@ CRITICAL BOUNDED COMMERCE RULES (Enterprise Safety Guardrails):
 2. **Deterministic Pricing**: When citing prices, always format in Indian Rupees (e.g. ₹59,999 or ₹4,999).
 3. **Reasoned Upsells**: When a customer is interested in a main product (e.g. a laptop or mechanical keyboard), proactively suggest a compatible accessory or upgrade (e.g. ergonomic mouse, laptop stand, USB-C dock). ALWAYS provide a clear 1-line reason explaining why it pairs well (e.g., "Programmers frequently pair this with the UltraBook for multi-display productivity").
 4. **Cart Actions**: When the customer explicitly asks to add an item to their cart ("add to cart", "buy this", "put in my cart"), call the "addToCart" tool.
-5. **Tone & Style**: Friendly, professional, concise, and helpful. Use clear markdown formatting (bolding, lists, pricing highlights). Never output raw JSON in your final user-facing text.
+5. **Tone & Style**: Friendly, professional, concise, and helpful. Do not use any markdowen formatting. Never output raw JSON in your final user-facing text.
 `;
 
 export async function runAgentLoop({
@@ -213,14 +213,14 @@ async function runFallbackAgentEngine(
           result: recs,
         });
 
-        let reply = `✅ **Added to cart**: ${addResult.message}\n\n`;
+        let reply = `✅ Added to cart: ${addResult.message}\n\n`;
 
         if (recs.recommendations && recs.recommendations.length > 0) {
           const topRec = recs.recommendations[0];
-          reply += `✨ **AI Upsell Recommendation**:\n` +
-            `Would you like to pair this with the **${topRec.name}** for **₹${topRec.price.toLocaleString("en-IN")}**?\n` +
-            `> *Reason: ${topRec.reason}*\n\n` +
-            `You can click **Add** in the recommendation card or check your updated cart drawer on the right!`;
+          reply += `✨ AI Upsell Recommendation:\n` +
+            `Would you like to pair this with the ${topRec.name} for ₹${topRec.price.toLocaleString("en-IN")}?\n` +
+            `> Reason: ${topRec.reason}\n\n` +
+            `You can click Add in the recommendation card or check your updated cart drawer on the right!`;
         } else {
           reply += `Your cart has been updated. Open the Cart Drawer to review your items and proceed to checkout!`;
         }
@@ -274,14 +274,14 @@ async function runFallbackAgentEngine(
     const subtotal = Number(cartResult.subtotal || 0);
     const totalAmount = Number(cartResult.totalAmount || subtotal);
 
-    let reply = `🛒 **Cart Summary (${cartResult.itemCount} items)**:\n\n`;
+    let reply = `🛒 Cart Summary (${cartResult.itemCount} items):\n\n`;
     for (const it of items) {
       const lineTotal = Number(it.lineTotal || it.subtotal || (it.price || it.unitPrice || 0) * (it.quantity || 1));
-      reply += `* **${it.name}** × ${it.quantity} — ₹${lineTotal.toLocaleString("en-IN")}\n`;
+      reply += `* ${it.name} × ${it.quantity} — ₹${lineTotal.toLocaleString("en-IN")}\n`;
     }
-    reply += `\n**Subtotal**: ₹${subtotal.toLocaleString("en-IN")}\n` +
-      `**Shipping**: Free Express Delivery\n` +
-      `**Total Amount**: **₹${totalAmount.toLocaleString("en-IN")}**\n\n` +
+    reply += `\nSubtotal: ₹${subtotal.toLocaleString("en-IN")}\n` +
+      `Shipping: Free Express Delivery\n` +
+      `Total Amount: ₹${totalAmount.toLocaleString("en-IN")}\n\n` +
       `Ready to proceed? Open the cart drawer to complete checkout with deterministic server verification.`;
 
     return { reply, toolExecutions };
@@ -353,26 +353,26 @@ async function runFallbackAgentEngine(
     const topUpsell = recsResult.recommendations?.[0];
 
     let reply = `Here is our top verified match from the inventory:\n\n` +
-      `### 💻 **${topProduct.name}**\n` +
-      `* **Price**: **₹${topProduct.price.toLocaleString("en-IN")}**\n` +
-      `* **Stock**: **${topProduct.stock} units** available in database\n` +
-      `* **Category**: \`${topProduct.category}\`\n` +
-      `* **Overview**: ${topProduct.description}\n\n`;
+      `### 💻 ${topProduct.name}\n` +
+      `* Price: ₹${topProduct.price.toLocaleString("en-IN")}\n` +
+      `* Stock: ${topProduct.stock} units available in database\n` +
+      `* Category: \`${topProduct.category}\`\n` +
+      `* Overview: ${topProduct.description}\n\n`;
 
     if (topUpsell) {
-      reply += `✨ **AI Upsell Pairing**:\n` +
-        `I recommend pairing this with the **${topUpsell.name}** (₹${topUpsell.price.toLocaleString("en-IN")}).\n` +
+      reply += `✨ AI Upsell Pairing:\n` +
+        `I recommend pairing this with the ${topUpsell.name} (₹${topUpsell.price.toLocaleString("en-IN")}).\n` +
         `> *Reason: ${topUpsell.reason}*\n\n`;
     }
 
-    reply += `Would you like me to add **${topProduct.name}** to your shopping cart?`;
+    reply += `Would you like me to add ${topProduct.name} to your shopping cart?`;
 
     return { reply, toolExecutions };
   }
 
   // Default Greeting / General Query
   return {
-    reply: `Hello! I am your **FlowCommerce AI Shopping Copilot**. I can help you search our verified tech inventory, recommend matching accessories with explainable reasoning, manage your cart, and check real-time stock.\n\nTry asking me:\n* *"Find a developer laptop with 32GB RAM under ₹80,000"*\n* *"Recommend an ergonomic mechanical keyboard for fast typing"*\n* *"What accessories pair best with my setup?"*`,
+    reply: `Hello! I am your FlowCommerce AI Shopping Copilot. I can help you search our verified tech inventory, recommend matching accessories with explainable reasoning, manage your cart, and check real-time stock.\n\nTry asking me:\n* "Find a developer laptop with 32GB RAM under ₹80,000"\n* "Recommend an ergonomic mechanical keyboard for fast typing"\n* "What accessories pair best with my setup?"`,
     toolExecutions,
   };
 }

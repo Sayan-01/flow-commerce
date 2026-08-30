@@ -141,20 +141,34 @@ export function CartDrawer({
                       key={item.id}
                       className="flex flex-col gap-2 rounded-xl border border-zinc-800/90 bg-zinc-900/70 p-3.5 transition-all hover:border-zinc-700"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">
-                            {item.category}
-                          </span>
-                          <h4 className="font-semibold text-xs text-zinc-100 truncate">
-                            {item.name}
-                          </h4>
-                          <span className="text-[11px] text-zinc-400 font-mono">
-                            ₹{item.price.toLocaleString("en-IN")} each
-                          </span>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className="h-12 w-12 rounded-lg object-cover bg-zinc-950 border border-zinc-800 shrink-0"
+                            />
+                          ) : (
+                            <div className="h-12 w-12 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center text-zinc-600 shrink-0">
+                              <ShoppingBag className="h-5 w-5" />
+                            </div>
+                          )}
+
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">
+                              {item.category}
+                            </span>
+                            <h4 className="font-semibold text-xs text-zinc-100 truncate">
+                              {item.name}
+                            </h4>
+                            <span className="text-[11px] text-zinc-400 font-mono">
+                              ₹{item.price.toLocaleString("en-IN")} each
+                            </span>
+                          </div>
                         </div>
 
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <span className="text-xs font-bold text-white whitespace-nowrap block">
                             ₹{item.subtotal.toLocaleString("en-IN")}
                           </span>

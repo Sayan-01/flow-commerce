@@ -30,7 +30,7 @@ export default async function RootLayout({
     >
       <body
         cz-shortcut-listen="true"
-        className="min-h-full dark flex flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
+        className="min-h-full dark flex flex-col"
       >
         <Navbar session={session} />
         <main className="flex-1 flex flex-col">{children}</main>

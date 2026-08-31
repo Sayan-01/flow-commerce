@@ -291,7 +291,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
   const cartItemCount = cart?.itemCount || 0;
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-65px)] max-w-5xl mx-auto px-4 py-4 sm:px-6 ">
+    <div className="relative flex flex-col h-[calc(100vh-78.5px)] max-w-[1112px] mx-auto p-6 border-x">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-20 right-6 z-50 rounded-xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 px-4 py-2.5 text-xs font-semibold shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3">
@@ -303,11 +303,9 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
       )}
 
       {/* Top Controls Bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4 shrink-0">
+      <div className="flex items-center justify-between  border-zinc-800/80 mb-6 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-cyan-400 text-white shadow-md shadow-indigo-500/20">
-            <Bot className="h-5 w-5" />
-          </div>
+          
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-sm text-white">FlowCommerce Copilot</h2>

@@ -12,10 +12,10 @@ export const metadata: Metadata = {
 
 export default function ChatPage() {
   return (
-    <div className="min-h-[calc(100vh-65px)] bg-zinc-950 text-zinc-100 flex flex-col justify-between">
+    <div className="min-h-[calc(100vh-78.5px)]  text-zinc-100 flex flex-col justify-between">
       <Suspense
         fallback={
-          <div className="flex flex-col items-center justify-center h-[calc(100vh-65px)] text-zinc-400">
+          <div className="flex flex-col items-center justify-center h-[calc(100vh-78.5px)] text-zinc-400">
             <Loader2 className="h-7 w-7 animate-spin text-indigo-500 mb-3" />
             <p className="text-sm font-medium">Connecting to FlowCommerce Copilot...</p>
           </div>

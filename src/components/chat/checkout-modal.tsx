@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ShieldCheck, X, CreditCard, AlertTriangle, Lock, ArrowRight, Sparkles, Loader2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { X, CreditCard, AlertTriangle, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface OrderItemData {
@@ -40,6 +41,7 @@ interface CheckoutModalProps {
 }
 
 export function CheckoutModal({ order, isOpen, onClose, onPaymentSuccess }: CheckoutModalProps) {
+  const { data: session } = useSession();
   const [isConfirming, setIsConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -149,12 +151,12 @@ export function CheckoutModal({ order, isOpen, onClose, onPaymentSuccess }: Chec
           await verifyPaymentAndRedirect(paymentPayload);
         },
         prefill: {
-          name: "Customer",
-          email: "customer@flowcommerce.ai",
+          name: session?.user?.name || "Customer",
+          email: session?.user?.email || "shopper@flow-commerce.ai",
           contact: "9999999999",
         },
         theme: {
-          color: "#4f46e5",
+          color: "#10b981",
         },
         modal: {
           ondismiss: function () {
@@ -175,30 +177,24 @@ export function CheckoutModal({ order, isOpen, onClose, onPaymentSuccess }: Chec
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity animate-in fade-in-0 duration-200"
+        className="fixed inset-0 bg-black/70 transition-opacity animate-in fade-in-0 duration-200"
         onClick={onClose}
       />
 
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-zinc-100">
+        <div className="relative w-full max-w-xl rounded-lg border border-[#232326] bg-[#111113] p-5 animate-in zoom-in-95 duration-200 text-[#F2F1ED]">
           {/* Header */}
-          <div className="flex items-start justify-between pb-4 border-b border-zinc-800">
+          <div className="flex items-start justify-between pb-4 border-b border-[#232326]">
             <div>
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-indigo-600/10 border border-indigo-500/20 text-indigo-400">
-                  <ShieldCheck className="h-4 w-4" />
-                </div>
-                <h3 className="font-bold text-lg text-white">Order Review & Confirmation</h3>
-              </div>
-              <p className="text-xs text-zinc-400 mt-1">
-                Order <span className="font-mono text-indigo-300">#{order.id.slice(-8)}</span> •{" "}
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 border border-amber-500/20 text-amber-300">{order.status}</span>
+              <h3 className="font-medium text-[15px] text-[#F2F1ED]">Confirm your order</h3>
+              <p className="text-xs text-[#7C7C82] mt-1">
+                Order #{order.id.slice(-8)} · <span className="text-emerald-500">{order.status}</span>
               </p>
             </div>
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+              className="p-1.5 rounded-md text-[#7C7C82] hover:bg-[#1B1B1E] hover:text-[#F2F1ED] transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -206,90 +202,84 @@ export function CheckoutModal({ order, isOpen, onClose, onPaymentSuccess }: Chec
 
           {/* Error Message */}
           {errorMessage && (
-            <div className="my-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-300 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
+            <div className="my-4 rounded-md bg-[#2A1917] border border-[#4A2B26] p-3 text-xs text-[#E0A29A] flex items-center gap-2">
+              <AlertTriangle
+                className="h-4 w-4 shrink-0"
+                strokeWidth={1.5}
+              />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {/* Itemized Line Items List */}
-          <div className="my-4 space-y-2.5 max-h-64 overflow-y-auto pr-1">
-            <h4 className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Itemized Line Items (Price Snapshotted)</h4>
-
+          <div className="my-5 space-y-5 max-h-64 overflow-y-auto pr-1">
             {order.items.map((item) => (
               <div
                 key={item.id}
-                className="rounded-xl border border-zinc-800/90 bg-zinc-900/50 p-3 flex flex-col gap-1.5 transition-colors hover:border-zinc-700"
+                className="rounded-lg border border-[#232326] bg-[#151517] p-3 flex flex-col gap-1.5"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-semibold text-indigo-400 uppercase">{item.product?.category || "Product"}</span>
-                      {item.isUpsell && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.2 rounded bg-indigo-600/20 border border-indigo-500/30 text-indigo-300">
-                          <Sparkles className="h-2.5 w-2.5" />
-                          <span>AI Upsell Pairing</span>
-                        </span>
-                      )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-[#7C7C82]">{item.product?.category || "Product"}</span>
+                      {item.isUpsell && <span className="text-[10px] text-[#B99B5C]">AI pairing</span>}
                     </div>
-                    <h5 className="font-semibold text-xs text-zinc-100 mt-0.5">{item.product?.name || "Verified Product"}</h5>
+                    <h5 className="font-medium text-[13px] text-[#F2F1ED] leading-snug">{item.product?.name || "Verified Product"}</h5>
                   </div>
 
-                  <div className="text-right">
-                    <span className="text-xs font-bold text-white whitespace-nowrap block">₹{(item.unitPrice * item.quantity).toLocaleString("en-IN")}</span>
-                    <span className="text-[10px] text-zinc-400 font-mono">
+                  <div className="text-right shrink-0">
+                    <span className="text-[13px] font-medium text-[#F2F1ED] whitespace-nowrap block">₹{(item.unitPrice * item.quantity).toLocaleString("en-IN")}</span>
+                    <span className="text-[11px] text-[#7C7C82]">
                       ₹{item.unitPrice.toLocaleString("en-IN")} × {item.quantity}
                     </span>
                   </div>
                 </div>
 
-                {item.reason && <p className="text-[11px] text-zinc-400 italic bg-zinc-950/60 rounded px-2 py-1 border border-zinc-800/60">💡 &ldquo;{item.reason}&rdquo;</p>}
+                {item.reason && <p className="text-[11px] text-[#8C8C92] italic leading-relaxed">{item.reason}</p>}
               </div>
             ))}
           </div>
 
           {/* Pricing Breakdown */}
-          <div className="space-y-2 rounded-xl bg-zinc-900/80 border border-zinc-800 p-3.5 text-xs text-zinc-300 mb-4">
+          <div className="space-y-1.5 rounded-lg border border-[#232326] bg-[#141416] p-3.5 text-xs text-[#8C8C92] mb-4">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span className="font-semibold text-white">₹{order.subtotal.toLocaleString("en-IN")}</span>
+              <span className="text-[#D8D8D4]">₹{order.subtotal.toLocaleString("en-IN")}</span>
             </div>
             <div className="flex justify-between">
-              <span>Shipping & Delivery</span>
-              <span className="text-emerald-400 font-medium">Free Express Delivery</span>
+              <span>Shipping</span>
+              <span className="text-[#7FA88F]">Free</span>
             </div>
-            <div className="flex justify-between text-sm font-bold text-white pt-2 border-t border-zinc-800">
-              <span>Total Amount</span>
-              <span className="text-base text-indigo-400 font-extrabold">₹{order.totalAmount.toLocaleString("en-IN")}</span>
+            <div className="flex justify-between text-sm font-medium text-[#F2F1ED] pt-2.5 border-t border-[#1E1E21]">
+              <span>Total</span>
+              <span>₹{order.totalAmount.toLocaleString("en-IN")}</span>
             </div>
           </div>
 
-          {/* Explicit Confirmation Gate Security Notice */}
-          <div className="mb-5 rounded-xl bg-gradient-to-r from-indigo-950/50 via-zinc-900 to-zinc-900 border border-indigo-500/30 p-3 flex items-start gap-2.5 text-xs text-indigo-200">
-            <Lock className="h-4 w-4 shrink-0 text-indigo-400 mt-0.5" />
-            <div>
-              <p className="font-semibold text-white">Direct Razorpay Gateway Integration</p>
-              <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
-                Clicking confirm directly opens the official Razorpay payment portal with secure UPI, Cards, and Net Banking options.
-              </p>
-            </div>
+          {/* Security Notice */}
+          <div className="mb-5 flex items-start gap-2.5 text-xs text-[#8C8C92]">
+            <Lock
+              className="h-3.5 w-3.5 shrink-0 mt-0.5 text-[#7C7C82]"
+              strokeWidth={1.5}
+            />
+            <p className="leading-relaxed">Confirming opens the official Razorpay checkout for UPI, cards, or net banking. Your payment details never touch our servers.</p>
           </div>
 
           {/* The Payment Action Button */}
           <Button
             onClick={handlePay}
             disabled={isConfirming}
-            className="w-full bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-600/25 hover:from-indigo-500 hover:to-blue-500 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+            className="w-full bg-emerald-500 hover:bg-emerald-700 text-[#14120C] font-medium py-3 rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             {isConfirming ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Opening Razorpay Gateway...</span>
+                <span>Opening Razorpay…</span>
               </>
             ) : (
               <>
                 <CreditCard className="h-4 w-4" />
-                <span>Pay ₹{order.totalAmount.toLocaleString("en-IN")} with Razorpay</span>
+                <span>Pay ₹{order.totalAmount.toLocaleString("en-IN")}</span>
                 <ArrowRight className="h-4 w-4 ml-1" />
               </>
             )}

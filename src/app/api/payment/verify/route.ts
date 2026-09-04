@@ -123,10 +123,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Write Permanent Confirmation to Conversation History
-    const sessionId = requestedSessionId || (order.cartId ? (await prisma.cart.findUnique({ where: { id: order.cartId } }))?.sessionId : null);
-    if (sessionId) {
-      const conversation = await prisma.conversation.findUnique({
-        where: { sessionId },
+    const userId = order.userId || requestedSessionId || (order.cartId ? (await prisma.cart.findUnique({ where: { id: order.cartId } }))?.userId : null);
+    if (userId) {
+      const conversation = await prisma.conversation.findFirst({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
       });
 
       if (conversation) {

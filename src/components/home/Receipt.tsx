@@ -1,5 +1,5 @@
 import React from "react";
-import { formatPrice } from "@/data/products";
+import { formatPrice } from "@/lib/utils";
 
 export interface ReceiptItem {
   name: string;

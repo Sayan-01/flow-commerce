@@ -1,6 +1,5 @@
 import Receipt from "./Receipt";
 
-const prompts = ["Find a developer laptop, 32GB RAM, under ₹80k", "Recommend a mechanical keyboard for fast typing", "Build an ergonomic desk setup"];
 
 export function HeroSection() {
   return (

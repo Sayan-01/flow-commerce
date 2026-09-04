@@ -10,32 +10,41 @@ export async function GET(request: NextRequest) {
     const inStockOnly = searchParams.get("inStock") === "true";
     const maxPrice = searchParams.get("maxPrice") ? parseInt(searchParams.get("maxPrice")!) : undefined;
 
-    const where: Record<string, any> = {
-      isActive: true,
-    };
-
-    if (query) {
-      where.OR = [
-        { name: { contains: query, mode: "insensitive" } },
-        { description: { contains: query, mode: "insensitive" } },
-        { category: { contains: query, mode: "insensitive" } },
-      ];
-    }
-
-    if (category) {
-      where.category = { equals: category, mode: "insensitive" };
-    }
-
-    if (tag) {
-      where.tags = { has: tag.toLowerCase() };
-    }
+    const where: Record<string, any> = { isActive: true };
 
     if (inStockOnly) {
       where.stock = { gt: 0 };
     }
 
+    if (category && category.trim()) {
+      where.category = { contains: category.trim().replace(/s$/i, ""), mode: "insensitive" };
+    }
+
+    if (tag && tag.trim()) {
+      where.tags = { has: tag.trim().toLowerCase() };
+    }
+
     if (maxPrice !== undefined && !isNaN(maxPrice)) {
       where.price = { lte: maxPrice };
+    }
+
+    if (query && query.trim()) {
+      const words = query
+        .replace(/(?:under|below|budget|less than)?\s*(?:₹|rs\.?|inr)?\s*[\d,]+(?:k|000)?/gi, " ")
+        .replace(/[^\w\s-]/g, " ")
+        .trim()
+        .split(/\s+/)
+        .filter((w) => w.length > 1 && !/^(under|below|price|for|the|and|with|show|best)$/i.test(w));
+
+      if (words.length > 0) {
+        where.AND = words.map((w) => ({
+          OR: [
+            { name: { contains: w, mode: "insensitive" } },
+            { description: { contains: w, mode: "insensitive" } },
+            { tags: { has: w.toLowerCase() } },
+          ],
+        }));
+      }
     }
 
     const products = await prisma.product.findMany({

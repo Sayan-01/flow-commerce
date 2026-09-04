@@ -2,14 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { formatPrice } from "@/data/products";
-import type { Product as PrismaProduct } from "@prisma/client";
-import type { Product as StaticProduct } from "@/data/products";
-
-export type AnyProduct = PrismaProduct | StaticProduct;
+import { formatPrice } from "@/lib/utils";
+import type { Product } from "@prisma/client";
 
 interface ProductCardProps {
-  product: AnyProduct;
+  product: Product;
   tag?: string;
 }
 

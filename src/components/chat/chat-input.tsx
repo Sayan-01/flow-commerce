@@ -97,17 +97,15 @@ export function ChatInput({
           disabled={!input.trim() || isLoading || disabled}
           className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 p-0 text-white shadow-md hover:bg-indigo-500 disabled:opacity-40"
         >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>
 
       <div className="flex items-center justify-between text-[11px] text-zinc-500 px-1">
-        <span>Press <kbd className="font-mono text-zinc-400">Enter</kbd> to send, <kbd className="font-mono text-zinc-400">Shift+Enter</kbd> for newline</span>
-        <span className="text-emerald-400 font-medium">Model: stealth/ox-alpha</span>
+        <span>
+          Press <kbd className="font-mono text-zinc-400">Enter</kbd> to send, <kbd className="font-mono text-zinc-400">Shift+Enter</kbd> for newline
+        </span>
+        <span className="text-emerald-400 font-medium">Model: {process.env.NEXT_PUBLIC_OPENROUTER_MODEL}</span>
       </div>
     </div>
   );

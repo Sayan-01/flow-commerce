@@ -8,6 +8,7 @@ const sora = Sora({
 
 import { Navbar } from "@/components/navbar";
 import { auth } from "../../auth";
+import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
   title: "FlowCommerce — AI Sales & Checkout Shopping Agent",
@@ -20,21 +21,22 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
-  console.log(session?.user);
-  
+  console.log("Root User Id:", session?.user?.id);
 
   return (
-    <html
-      lang="en"
-      className={`${sora.className} h-full antialiased`}
-    >
-      <body
-        cz-shortcut-listen="true"
-        className="min-h-full dark flex flex-col"
+    <SessionProvider session={session}>
+      <html
+        lang="en"
+        className={`${sora.className} h-full antialiased`}
       >
-        <Navbar session={session} />
-        <main className="flex-1 flex flex-col">{children}</main>
-      </body>
-    </html>
+        <body
+          cz-shortcut-listen="true"
+          className="min-h-full dark flex flex-col"
+        >
+          <Navbar session={session} />
+          <main className="flex-1 flex flex-col">{children}</main>
+        </body>
+      </html>
+    </SessionProvider>
   );
 }

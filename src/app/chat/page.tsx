@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import { Metadata } from "next";
 import { ChatContainer } from "@/components/chat";
 import { Loader2 } from "lucide-react";
+import { auth } from "../../../auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,9 @@ export const metadata: Metadata = {
   description: "Chat with the FlowCommerce AI Shopping Copilot for tech recommendations, real-time stock checks, and bounded checkout.",
 };
 
-export default function ChatPage() {
+export default async function ChatPage() {
+  const session = await auth();
+
   return (
     <div className="min-h-[calc(100vh-78.5px)]  text-zinc-100 flex flex-col justify-between">
       <Suspense

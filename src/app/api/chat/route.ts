@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { runAgentLoop } from "@/lib/agent/engine";
+import { auth } from "../../../../auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { messages = [], sessionId: requestedSessionId } = body;
+    const session = await auth();
+    const userId = session?.user?.id;
 
-    const sessionId = requestedSessionId || `session_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized. Please sign in to chat." },
+        { status: 401 }
+      );
+    }
+
+    console.log("session user id: ", userId);
+
+    const body = await request.json();
+    const { messages = [] } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json({ success: false, error: "Messages array is required" }, { status: 400 });
@@ -16,13 +27,13 @@ export async function POST(request: NextRequest) {
     const latestUserMessage = messages[messages.length - 1];
 
     // 1. Find or create conversation
-    let conversation = await prisma.conversation.findUnique({
-      where: { sessionId },
+    let conversation = await prisma.conversation.findFirst({
+      where: { userId },
     });
 
     if (!conversation) {
       conversation = await prisma.conversation.create({
-        data: { sessionId },
+        data: { userId },
       });
     }
 
@@ -40,7 +51,7 @@ export async function POST(request: NextRequest) {
     // 3. Run LLM Tool-Calling Agent Loop
     const agentResult = await runAgentLoop({
       messages,
-      sessionId,
+      userId,
     });
 
     // 4. Persist Assistant Message to DB
@@ -73,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     // 6. Fetch latest active cart state & recommendations
     const cart = await prisma.cart.findUnique({
-      where: { sessionId },
+      where: { userId },
       include: {
         items: {
           include: {
@@ -128,16 +139,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      sessionId,
+      userId,
       reply: agentResult.reply,
       toolExecutions: agentResult.toolExecutions,
       cart: formattedCart,
     });
   } catch (error: any) {
     console.error("Error in /api/chat:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to process chat message" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message || "Failed to process chat message" }, { status: 500 });
   }
 }

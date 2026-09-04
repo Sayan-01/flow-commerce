@@ -7,25 +7,25 @@ export const AGENT_TOOLS_DEFINITIONS = [
     type: "function",
     function: {
       name: "searchProducts",
-      description: "Search for available products in the catalog by keyword query, category, maximum price (INR), or specific tags.",
+      description: "Search for available products in the catalog by keywords, category, maximum price (INR), or specific tags.",
       parameters: {
         type: "object",
         properties: {
           query: {
             type: "string",
-            description: "Keyword to search product name, description, or features (e.g. 'laptop', 'mechanical keyboard', 'ergonomic').",
+            description: "Concise product keywords to search (e.g. 'fhd ips monitor', 'mechanical keyboard', 'usb-c dock'). Keep free of price expressions and conversational words.",
           },
           category: {
             type: "string",
-            description: "Optional product category filter (e.g. 'Laptops', 'Keyboards & Mice', 'Audio', 'Accessories').",
+            description: "Optional product category filter (e.g. 'Monitors', 'Laptops', 'Keyboards & Mice', 'Audio', 'Accessories').",
           },
           maxPrice: {
             type: "number",
-            description: "Optional maximum price filter in Indian Rupees (INR).",
+            description: "Optional maximum price filter in Indian Rupees (INR) (e.g. 10000).",
           },
           tag: {
             type: "string",
-            description: "Optional tag filter (e.g. 'coding', 'wireless', 'mechanical', 'portable').",
+            description: "Optional tag filter (e.g. 'coding', 'wireless', 'mechanical', 'developer', 'ips', 'fhd').",
           },
           inStockOnly: {
             type: "boolean",
@@ -80,16 +80,7 @@ export const AGENT_TOOLS_DEFINITIONS = [
       description: "Retrieve the current active cart items, verified unit prices, quantities, and calculated subtotal from the database.",
       parameters: {
         type: "object",
-        properties: {
-          sessionId: {
-            type: "string",
-            description: "The customer's session ID.",
-          },
-          cartId: {
-            type: "string",
-            description: "The cart ID if known.",
-          },
-        },
+        properties: {},
       },
     },
   },
@@ -109,12 +100,8 @@ export const AGENT_TOOLS_DEFINITIONS = [
             type: "number",
             description: "Quantity to add (must be at least 1, defaults to 1).",
           },
-          sessionId: {
-            type: "string",
-            description: "The customer's active session ID.",
-          },
         },
-        required: ["productId", "sessionId"],
+        required: ["productId"],
       },
     },
   },
@@ -130,16 +117,12 @@ export const AGENT_TOOLS_DEFINITIONS = [
             type: "string",
             description: "The product ID to remove.",
           },
-          sessionId: {
-            type: "string",
-            description: "The customer's active session ID.",
-          },
           removeAll: {
             type: "boolean",
             description: "Whether to remove all quantities of this item or just decrement by 1 (defaults to true).",
           },
         },
-        required: ["productId", "sessionId"],
+        required: ["productId"],
       },
     },
   },
@@ -159,12 +142,8 @@ export const AGENT_TOOLS_DEFINITIONS = [
             type: "number",
             description: "The new quantity (0 to remove, positive integer to set).",
           },
-          sessionId: {
-            type: "string",
-            description: "The customer's active session ID.",
-          },
         },
-        required: ["productId", "quantity", "sessionId"],
+        required: ["productId", "quantity"],
       },
     },
   },
@@ -175,13 +154,7 @@ export const AGENT_TOOLS_DEFINITIONS = [
       description: "Compute deterministic server-calculated cart breakdown including subtotal, discounts, shipping, and total amount.",
       parameters: {
         type: "object",
-        properties: {
-          sessionId: {
-            type: "string",
-            description: "The customer's active session ID.",
-          },
-        },
-        required: ["sessionId"],
+        properties: {},
       },
     },
   },
@@ -193,10 +166,6 @@ export const AGENT_TOOLS_DEFINITIONS = [
       parameters: {
         type: "object",
         properties: {
-          sessionId: {
-            type: "string",
-            description: "The customer's active session ID.",
-          },
           category: {
             type: "string",
             description: "Optional primary category to find pairings for.",
@@ -206,7 +175,6 @@ export const AGENT_TOOLS_DEFINITIONS = [
             description: "Optional budget ceiling for upsell items.",
           },
         },
-        required: ["sessionId"],
       },
     },
   },
@@ -218,37 +186,32 @@ export const AGENT_TOOLS_DEFINITIONS = [
       parameters: {
         type: "object",
         properties: {
-          sessionId: {
-            type: "string",
-            description: "The customer's active session ID.",
-          },
           customerNote: {
             type: "string",
             description: "Optional delivery or special instructions note from the customer.",
           },
         },
-        required: ["sessionId"],
       },
     },
   },
 ];
 
 // Recommendation Engine Logic
-export async function generateUpsellRecommendations(sessionId: string, preferredCategory?: string, budgetCeiling?: number) {
+export async function generateUpsellRecommendations(userId: string, preferredCategory?: string, budgetCeiling?: number) {
   // 1. Get or create conversation for this session
-  let conversation = await prisma.conversation.findUnique({
-    where: { sessionId },
+  let conversation = await prisma.conversation.findFirst({
+    where: { userId },
   });
 
   if (!conversation) {
     conversation = await prisma.conversation.create({
-      data: { sessionId },
+      data: { userId },
     });
   }
 
   // 2. Fetch current active cart
   const cart = await prisma.cart.findUnique({
-    where: { sessionId },
+    where: { userId },
     include: {
       items: {
         include: {
@@ -307,18 +270,9 @@ export async function generateUpsellRecommendations(sessionId: string, preferred
     orderBy: [{ stock: "desc" }, { price: "asc" }],
   });
 
-  // If none found in targeted category, fallback to any available in-stock item not in cart
+  // If no matching products found in the targeted category, return empty — don't show random items
   if (candidates.length === 0) {
-    candidates = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        stock: { gt: 0 },
-        id: { notIn: cartProductIds },
-      },
-      take: 2,
-      orderBy: { price: "asc" },
-    });
-    defaultReason = "Top recommended developer gear in stock and ready to ship.";
+    return [];
   }
 
   const recommendations = [];
@@ -416,9 +370,24 @@ export async function generateUpsellRecommendations(sessionId: string, preferred
 export async function executeAgentTool(
   name: string,
   args: Record<string, any>,
-  context: { sessionId?: string; merchantId?: string }
+  context: { userId?: string; sessionId?: string; merchantId?: string } = {}
 ): Promise<any> {
-  const sessionId = args.sessionId || context.sessionId || "default_guest_session";
+  const userId = context?.userId || context?.sessionId || args?.userId || args?.sessionId;
+
+  // Only cart and checkout operations require an authenticated user/cart session
+  const CART_REQUIRING_TOOLS = [
+    "getCart",
+    "addToCart",
+    "removeFromCart",
+    "updateCartQuantity",
+    "calculateTotal",
+    "getRecommendations",
+    "createOrder",
+  ];
+
+  if (CART_REQUIRING_TOOLS.includes(name) && !userId) {
+    return { success: false, error: "Please sign in to view or manage your shopping cart." };
+  }
 
   switch (name) {
     case "searchProducts": {
@@ -429,25 +398,36 @@ export async function executeAgentTool(
         where.stock = { gt: 0 };
       }
 
-      if (query && typeof query === "string" && query.trim()) {
-        const q = query.trim();
-        where.OR = [
-          { name: { contains: q, mode: "insensitive" } },
-          { description: { contains: q, mode: "insensitive" } },
-          { category: { contains: q, mode: "insensitive" } },
-        ];
+      if (category && typeof category === "string" && category.trim()) {
+        where.category = { contains: category.trim().replace(/s$/i, ""), mode: "insensitive" };
       }
 
-      if (category && typeof category === "string") {
-        where.category = { equals: category.trim(), mode: "insensitive" };
-      }
-
-      if (tag && typeof tag === "string") {
+      if (tag && typeof tag === "string" && tag.trim()) {
         where.tags = { has: tag.trim().toLowerCase() };
       }
 
       if (maxPrice && !isNaN(Number(maxPrice))) {
         where.price = { lte: Number(maxPrice) };
+      }
+
+      // If query is provided, split into keywords and match across name, description, tags
+      if (query && typeof query === "string" && query.trim()) {
+        const words = query
+          .replace(/(?:under|below|budget|less than)?\s*(?:₹|rs\.?|inr)?\s*[\d,]+(?:k|000)?/gi, " ")
+          .replace(/[^\w\s-]/g, " ")
+          .trim()
+          .split(/\s+/)
+          .filter((w) => w.length > 1 && !/^(under|below|price|for|the|and|with|show|best|ache|query)$/i.test(w));
+
+        if (words.length > 0) {
+          where.AND = words.map((w) => ({
+            OR: [
+              { name: { contains: w, mode: "insensitive" } },
+              { description: { contains: w, mode: "insensitive" } },
+              { tags: { has: w.toLowerCase() } },
+            ],
+          }));
+        }
       }
 
       const products = await prisma.product.findMany({
@@ -465,6 +445,63 @@ export async function executeAgentTool(
           imageUrl: true,
         },
       });
+
+      if (products.length === 0 && maxPrice) {
+        // Find if matching products exist at a higher price tier
+        const whereNoPrice = { ...where };
+        delete whereNoPrice.price;
+        const higherTier = await prisma.product.findMany({
+          where: whereNoPrice,
+          take: 2,
+          orderBy: { price: "asc" },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+            category: true,
+            tags: true,
+            stock: true,
+            imageUrl: true,
+          },
+        });
+
+        // Check if query is related to audio / headphones to find smart in-budget audio gear
+        const isAudio = /headphone|earphone|earbud|audio|sound|mic|music/i.test(query || category || "");
+        const budgetAlternatives = await prisma.product.findMany({
+          where: {
+            isActive: true,
+            stock: { gt: 0 },
+            price: { lte: Number(maxPrice) },
+            ...(isAudio ? { category: { equals: "Audio", mode: "insensitive" } } : {}),
+            id: { notIn: higherTier.map((h) => h.id) },
+          },
+          take: 2,
+          orderBy: { price: "desc" },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            price: true,
+            category: true,
+            tags: true,
+            stock: true,
+            imageUrl: true,
+          },
+        });
+
+        const combined = [...higherTier, ...budgetAlternatives];
+
+        return {
+          success: true,
+          count: combined.length,
+          products: combined,
+          isAlternativeSuggestion: true,
+          message: `No products found strictly under ₹${maxPrice} for "${query || category || "search"}". Showing closest available models and related in-budget alternatives.`,
+          closestAvailableMatches: higherTier.length > 0 ? higherTier : undefined,
+          budgetAlternatives: budgetAlternatives.length > 0 ? budgetAlternatives : undefined,
+        };
+      }
 
       return {
         success: true,
@@ -491,7 +528,7 @@ export async function executeAgentTool(
       }
 
       if (!product) {
-        return { success: false, error: "Product not found in current inventory." };
+        return { success: false, error: "Product not found. It may have been removed or the ID is incorrect." };
       }
 
       return {
@@ -535,7 +572,7 @@ export async function executeAgentTool(
 
     case "getCart": {
       let cart = await prisma.cart.findUnique({
-        where: { sessionId },
+        where: { userId },
         include: {
           items: {
             include: {
@@ -548,7 +585,7 @@ export async function executeAgentTool(
       if (!cart) {
         cart = await prisma.cart.create({
           data: {
-            sessionId,
+            userId,
             status: "ACTIVE",
           },
           include: {
@@ -596,8 +633,12 @@ export async function executeAgentTool(
         where: { id: productId },
       });
 
-      if (!product || !product.isActive) {
-        return { success: false, error: "Product not found or inactive." };
+      if (!product) {
+        return { success: false, error: "Product not found. Check the product ID and try again." };
+      }
+
+      if (!product.isActive) {
+        return { success: false, error: `"${product.name}" is currently unavailable and cannot be added to cart.` };
       }
 
       if (product.stock < parsedQty) {
@@ -609,13 +650,13 @@ export async function executeAgentTool(
 
       // Find or create cart
       let cart = await prisma.cart.findUnique({
-        where: { sessionId },
+        where: { userId },
       });
 
       if (!cart) {
         cart = await prisma.cart.create({
           data: {
-            sessionId,
+            userId,
             status: "ACTIVE",
           },
         });
@@ -705,11 +746,11 @@ export async function executeAgentTool(
       const { productId, removeAll = true } = args;
 
       const cart = await prisma.cart.findUnique({
-        where: { sessionId },
+        where: { userId },
       });
 
       if (!cart) {
-        return { success: false, error: "Cart not found." };
+        return { success: false, error: "Your cart is empty. Add some items first before removing." };
       }
 
       const existingItem = await prisma.cartItem.findUnique({
@@ -723,7 +764,7 @@ export async function executeAgentTool(
       });
 
       if (!existingItem) {
-        return { success: false, error: "Item not in cart." };
+        return { success: false, error: "This item is not in your cart. It may have already been removed." };
       }
 
       if (removeAll || existingItem.quantity <= 1) {
@@ -766,11 +807,11 @@ export async function executeAgentTool(
       const targetQty = Math.max(0, Math.round(Number(quantity) || 0));
 
       const cart = await prisma.cart.findUnique({
-        where: { sessionId },
+        where: { userId },
       });
 
       if (!cart) {
-        return { success: false, error: "Cart not found." };
+        return { success: false, error: "Your cart is empty. Add some items first before updating quantities." };
       }
 
       if (targetQty === 0) {
@@ -785,7 +826,7 @@ export async function executeAgentTool(
       });
 
       if (!product) {
-        return { success: false, error: "Product not found." };
+        return { success: false, error: "Product not found. It may have been removed from the store." };
       }
 
       if (product.stock < targetQty) {
@@ -822,7 +863,7 @@ export async function executeAgentTool(
 
     case "calculateTotal": {
       const cart = await prisma.cart.findUnique({
-        where: { sessionId },
+        where: { userId },
         include: {
           items: {
             include: { product: true },
@@ -869,7 +910,7 @@ export async function executeAgentTool(
 
     case "getRecommendations": {
       const { category, maxPrice } = args;
-      const recommendations = await generateUpsellRecommendations(sessionId, category, maxPrice);
+      const recommendations = await generateUpsellRecommendations(userId, category, maxPrice);
 
       return {
         success: true,
@@ -880,12 +921,12 @@ export async function executeAgentTool(
 
     case "createOrder": {
       const { customerNote } = args;
-      const result = await createOrderProposal({ sessionId, customerNote });
+      const result = await createOrderProposal({ userId, customerNote });
       return result;
     }
 
     default:
-      return { success: false, error: `Unknown tool "${name}".` };
+      return { success: false, error: `Tool "${name}" is not recognized. Available tools: searchProducts, getProductDetails, checkInventory, getCart, addToCart, removeFromCart, updateCartQuantity, calculateTotal, getRecommendations, createOrder.` };
   }
 }
 

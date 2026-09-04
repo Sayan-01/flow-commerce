@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { executeAgentTool, generateUpsellRecommendations } from "@/lib/agent/tools";
+import { auth } from "../../../../auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get("sessionId") || "default_guest_session";
+    const session = await auth();
+    const userId = session?.user?.id;
+
+    console.log("Session ID:", userId);
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "Unauthorized. Please sign in." }, { status: 401 });
+    }
 
     let cart = await prisma.cart.findUnique({
-      where: { sessionId },
+      where: { userId: userId },
       include: {
         items: {
           include: {
@@ -31,7 +38,7 @@ export async function GET(request: NextRequest) {
     if (!cart) {
       cart = await prisma.cart.create({
         data: {
-          sessionId,
+          userId: userId,
           status: "ACTIVE",
         },
         include: {
@@ -73,7 +80,7 @@ export async function GET(request: NextRequest) {
     // Fetch existing or generate recommendations only if cart has items
     let recommendations: any[] = [];
     if (cart.items.length > 0) {
-      recommendations = await generateUpsellRecommendations(sessionId);
+      recommendations = await generateUpsellRecommendations(userId);
     }
 
     return NextResponse.json({
@@ -91,19 +98,21 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error in GET /api/cart:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch cart" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message || "Failed to fetch cart" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, productId, quantity = 1, sessionId: requestedSessionId, removeAll = true } = body;
+    const session = await auth();
+    const userId = session?.user?.id;
 
-    const sessionId = requestedSessionId || "default_guest_session";
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "Unauthorized. Please sign in." }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { action, productId, quantity = 1, removeAll = true } = body;
 
     if (!action) {
       return NextResponse.json({ success: false, error: "Action is required ('add', 'update', 'remove', 'clear')" }, { status: 400 });
@@ -113,15 +122,15 @@ export async function POST(request: NextRequest) {
 
     if (action === "add") {
       if (!productId) return NextResponse.json({ success: false, error: "productId is required for add" }, { status: 400 });
-      toolResult = await executeAgentTool("addToCart", { productId, quantity, sessionId }, { sessionId });
+      toolResult = await executeAgentTool("addToCart", { productId, quantity, userId }, { userId });
     } else if (action === "update") {
       if (!productId) return NextResponse.json({ success: false, error: "productId is required for update" }, { status: 400 });
-      toolResult = await executeAgentTool("updateCartQuantity", { productId, quantity, sessionId }, { sessionId });
+      toolResult = await executeAgentTool("updateCartQuantity", { productId, quantity, userId }, { userId });
     } else if (action === "remove") {
       if (!productId) return NextResponse.json({ success: false, error: "productId is required for remove" }, { status: 400 });
-      toolResult = await executeAgentTool("removeFromCart", { productId, sessionId, removeAll }, { sessionId });
+      toolResult = await executeAgentTool("removeFromCart", { productId, userId, removeAll }, { userId });
     } else if (action === "clear") {
-      const cart = await prisma.cart.findUnique({ where: { sessionId } });
+      const cart = await prisma.cart.findUnique({ where: { userId: userId } });
       if (cart) {
         await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
       }
@@ -136,7 +145,7 @@ export async function POST(request: NextRequest) {
 
     // Return refreshed cart
     const cart = await prisma.cart.findUnique({
-      where: { sessionId },
+      where: { userId: userId },
       include: {
         items: {
           include: {
@@ -156,22 +165,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const items = cart?.items.map((it) => ({
-      id: it.id,
-      productId: it.productId,
-      name: it.product.name,
-      price: it.priceAtAdd,
-      quantity: it.quantity,
-      subtotal: it.priceAtAdd * it.quantity,
-      stock: it.product.stock,
-      category: it.product.category,
-      imageUrl: it.product.imageUrl,
-    })) || [];
+    const items =
+      cart?.items.map((it) => ({
+        id: it.id,
+        productId: it.productId,
+        name: it.product.name,
+        price: it.priceAtAdd,
+        quantity: it.quantity,
+        subtotal: it.priceAtAdd * it.quantity,
+        stock: it.product.stock,
+        category: it.product.category,
+        imageUrl: it.product.imageUrl,
+      })) || [];
 
     const subtotal = items.reduce((acc, it) => acc + it.subtotal, 0);
     const discount = 0;
     const totalAmount = subtotal - discount;
-    const recommendations = await generateUpsellRecommendations(sessionId);
+    const recommendations = await generateUpsellRecommendations(userId);
 
     return NextResponse.json({
       success: true,
@@ -189,9 +199,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error in POST /api/cart:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to modify cart" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message || "Failed to modify cart" }, { status: 500 });
   }
 }

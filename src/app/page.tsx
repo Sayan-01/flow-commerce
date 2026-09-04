@@ -1,16 +1,12 @@
 import { prisma } from "@/lib/prisma";
 
-import Showcase from "@/components/home/Showcase"
-import TrustStrip from "@/components/home/TrustStrip"
-import Principles from "@/components/home/Principles"
-import HowItWorks from "@/components/home/HowItWorks"
-import Catalog from "@/components/home/Catalog"
-import {HeroSection} from "@/components/home/hero-section";
-import { InteractiveDemo } from "@/components/home/interactive-demo";
-import { AgentWorkflow } from "@/components/home/agent-workflow";
-import { CatalogPreview } from "@/components/home/catalog-preview";
-import { HomeFooter } from "@/components/home/home-footer";
 import { ArchitecturePreview } from "@/components/home/ArchitecturePreview";
+import Catalog from "@/components/home/Catalog";
+import { HeroSection } from "@/components/home/hero-section";
+import { HomeFooter } from "@/components/home/home-footer";
+import HowItWorks from "@/components/home/HowItWorks";
+import Principles from "@/components/home/Principles";
+import TrustStrip from "@/components/home/TrustStrip";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {

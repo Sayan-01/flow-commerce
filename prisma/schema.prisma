@@ -55,131 +55,133 @@ enum RecommendationType {
 }
 
 model Merchant {
-  id          String     @id @default(cuid())
-  name        String
-  email       String     @unique
-  storeName   String     @default("Flow Commerce Store")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  storeName String   @default("Flow Commerce Store")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  products    Product[]
-  orders      Order[]
-  auditLogs   AuditLog[]
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  products  Product[]
+  orders    Order[]
+  auditLogs AuditLog[]
 
   @@map("merchants")
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String?        @unique
-  name          String?
-  role          Role           @default(CUSTOMER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-
-  carts         Cart[]
-  orders        Order[]
-  conversations Conversation[]
+  id              String           @id @default(cuid())
+  email           String?          @unique
+  name            String?
+  role            Role             @default(CUSTOMER)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  merchant        Merchant?
+  carts           Cart[]
+  orders          Order[]
+  conversations   Conversation[]
   recommendations Recommendation[]
 
   @@map("users")
 }
 
 model Product {
-  id          String     @id @default(cuid())
+  id          String   @id @default(cuid())
   merchantId  String
   name        String
   description String
-  price       Int        // stored in INR (Rupees or Paise, integer price)
+  price       Int // stored in INR (Rupees or Paise, integer price)
   category    String
-  tags        String[]   @default([])
-  stock       Int        @default(0)
+  tags        String[] @default([])
+  stock       Int      @default(0)
   imageUrl    String?
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  merchant    Merchant   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  cartItems   CartItem[]
-  orderItems  OrderItem[]
+  merchant        Merchant         @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
   recommendations Recommendation[]
 
   @@map("products")
 }
 
 model Cart {
-  id          String     @id @default(cuid())
-  userId      String?
-  sessionId   String?    @unique
-  status      CartStatus @default(ACTIVE)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  status    CartStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
-  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  items       CartItem[]
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           CartItem[]
   recommendations Recommendation[]
 
   @@map("carts")
 }
 
 model CartItem {
-  id          String   @id @default(cuid())
-  cartId      String
-  productId   String
-  quantity    Int      @default(1)
-  priceAtAdd  Int      // captured snapshot of unit price
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  cartId     String
+  productId  String
+  quantity   Int      @default(1)
+  priceAtAdd Int // captured snapshot of unit price
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  cart        Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@unique([cartId, productId])
   @@map("cart_items")
 }
 
 model Order {
-  id               String       @id @default(cuid())
-  userId           String?
-  merchantId       String
-  cartId           String?
-  status           OrderStatus  @default(PROPOSED)
-  totalAmount      Int          // in INR
-  subtotal         Int
-  discount         Int          @default(0)
-  currency         String       @default("INR")
-  customerNote     String?
-  razorpayOrderId  String?      @unique
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id              String      @id @default(cuid())
+  userId          String?
+  merchantId      String
+  cartId          String?
+  status          OrderStatus @default(PROPOSED)
+  totalAmount     Int // in INR
+  subtotal        Int
+  discount        Int         @default(0)
+  currency        String      @default("INR")
+  customerNote    String?
+  razorpayOrderId String?     @unique
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
-  user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  merchant         Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
-  items            OrderItem[]
-  payments         Payment[]
+  user     User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  merchant Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  items    OrderItem[]
+  payments Payment[]
 
   @@map("orders")
 }
 
 model OrderItem {
-  id          String   @id @default(cuid())
-  orderId     String
-  productId   String
-  quantity    Int      @default(1)
-  unitPrice   Int
-  isUpsell    Boolean  @default(false)
-  reason      String?  // Explanation why this upsell was accepted/recommended
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int      @default(1)
+  unitPrice Int
+  isUpsell  Boolean  @default(false)
+  reason    String? // Explanation why this upsell was accepted/recommended
+  createdAt DateTime @default(now())
 
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
   @@map("order_items")
 }
 
 model Payment {
   id                String        @id @default(cuid())
-  orderId           String @unique
+  orderId           String        @unique
   razorpayOrderId   String
   razorpayPaymentId String?       @unique
   razorpaySignature String?
@@ -187,77 +189,76 @@ model Payment {
   currency          String        @default("INR")
   status            PaymentStatus @default(PENDING)
   provider          String        @default("RAZORPAY")
-  rawResponse       Json?       // JSON stringified payload
+  rawResponse       Json? // JSON stringified payload
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("payments")
 }
 
 model Conversation {
-  id          String     @id @default(cuid())
-  userId      String?
-  sessionId   String?    @unique
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  messages    Message[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages        Message[]
   recommendations Recommendation[]
 
   @@map("conversations")
 }
 
 model Message {
-  id             String       @id @default(cuid())
+  id             String      @id @default(cuid())
   conversationId String
   role           MessageRole
   content        String
-  toolCalls      Json?      // JSON Jsonified tool invocation
-  toolResults    Json?      // JSON Jsonified tool execution output
-  createdAt      DateTime     @default(now())
+  toolCalls      Json? // JSON Jsonified tool invocation
+  toolResults    Json? // JSON Jsonified tool execution output
+  createdAt      DateTime    @default(now())
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@map("messages")
 }
 
 model Recommendation {
-  id          String   @id @default(cuid())
-  productId   String
-  userId      String?
-  cartId      String?
+  id             String             @id @default(cuid())
+  productId      String
+  userId         String?
+  cartId         String?
   conversationId String
   conversation   Conversation       @relation(fields: [conversationId], references: [id])
   type           RecommendationType
-  reason      String   // Reason text: "programmers frequently pair this with UltraBook Pro"
-  accepted    Boolean  
-  createdAt   DateTime @default(now())
+  reason         String // Reason text: "programmers frequently pair this with UltraBook Pro"
+  accepted       Boolean
+  createdAt      DateTime           @default(now())
 
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  cart        Cart?    @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  cart    Cart?   @relation(fields: [cartId], references: [id], onDelete: SetNull)
 
-  @@map("recommendations")
-   @@index([conversationId])
+  @@index([conversationId])
   @@index([productId])
+  @@map("recommendations")
 }
 
 model AuditLog {
-  id          String     @id @default(cuid())
-  merchantId  String?
-  actor       AuditActor @default(SYSTEM)
-  action      String     // e.g. "SEARCH_PRODUCTS", "ADD_TO_CART", "CONFIRM_ORDER_GATE", "GUARDRAIL_REJECT"
-  entityType  String?    // "ORDER", "CART", "PRODUCT", "PAYMENT"
-  entityId    String?
-  payload     Json?    // JSON stringified context
-  status      String     // "SUCCESS", "REJECTED", "FAILED"
-  reason      String?    // e.g. "Price tampering blocked" or "Successful checkout"
-  createdAt   DateTime   @default(now())
+  id         String     @id @default(cuid())
+  merchantId String?
+  actor      AuditActor @default(SYSTEM)
+  action     String // e.g. "SEARCH_PRODUCTS", "ADD_TO_CART", "CONFIRM_ORDER_GATE", "GUARDRAIL_REJECT"
+  entityType String? // "ORDER", "CART", "PRODUCT", "PAYMENT"
+  entityId   String?
+  payload    Json? // JSON stringified context
+  status     String // "SUCCESS", "REJECTED", "FAILED"
+  reason     String? // e.g. "Price tampering blocked" or "Successful checkout"
+  createdAt  DateTime   @default(now())
 
-  merchant    Merchant?  @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  merchant Merchant? @relation(fields: [merchantId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
 }

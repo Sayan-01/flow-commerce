@@ -25,15 +25,7 @@ async function main() {
   await prisma.merchant.deleteMany();
 
   // 1. Create Demo Merchant
-  const merchant = await prisma.merchant.create({
-    data: {
-      name: "Ankan Mistry",
-      email: "glowren01@gmail.com",
-      storeName: "Flow Commerce Electronics & Tech",
-    },
-  });
-  console.log(`✅ Created Merchant: ${merchant.storeName} (${merchant.id})`);
-
+  
   // 2. Create User linked as Merchant
   const customer = await prisma.user.create({
     data: {
@@ -43,6 +35,17 @@ async function main() {
     },
   });
   console.log(`✅ Created Merchant User: ${customer.name} (${customer.id})`);
+  
+  const merchant = await prisma.merchant.create({
+    data: {
+      id: customer.id,
+      userId: customer.id,
+      name: "Ankan Mistry",
+      email: "glowren01@gmail.com",
+      storeName: "Flow Commerce Electronics & Tech",
+    },
+  });
+  console.log(`✅ Created Merchant: ${merchant.storeName} (${merchant.id})`);
 
   // 3. Seed 20 Products: 15 items in ₹500-₹4,000 range & 5 items in ₹8,000-₹12,000 range
   const products = [

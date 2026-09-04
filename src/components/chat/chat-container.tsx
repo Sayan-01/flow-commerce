@@ -1,43 +1,37 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
-import {
-  Bot,
-  ShoppingBag,
-  Sparkles,
-  ShieldCheck,
-  RotateCcw,
-  Store,
-  Terminal,
-  Loader2,
-  Check,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ChatMessage } from "./chat-message";
-import { ChatInput } from "./chat-input";
+import { Bot, Check, Loader2, RotateCcw, ShoppingBag } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { CartDrawer } from "./cart-drawer";
+import { ChatInput } from "./chat-input";
+import { ChatMessage } from "./chat-message";
 import { CheckoutModal, ProposedOrderData } from "./checkout-modal";
-import { ChatMessageItem, CartState } from "./types";
+import { CartState, ChatMessageItem } from "./types";
+import { useSession } from "next-auth/react";
 
 interface ChatContainerProps {
   initialCart?: CartState | null;
+  sessionId?: string | null;
 }
 
 const INITIAL_GREETING: ChatMessageItem = {
   id: "msg_welcome",
   role: "assistant",
-  content: `👋 Welcome to FlowCommerce AI Sales Copilot!\n\nI can help you explore our verified catalog, check live inventory counts, and propose reasoned upsells tailored to your setup.\n\nWhat kind of developer gear, mechanical keyboards, monitors, audio, or workspace accessories are you looking for today?`,
+  content: `👋 **Welcome to FlowCommerce AI Sales Copilot!**\n\nI can help you explore our verified catalog, check live inventory counts, and propose reasoned upsells tailored to your setup.\n\nWhat kind of developer gear, mechanical keyboards, monitors, audio, or workspace accessories are you looking for today?`,
   createdAt: new Date().toISOString(),
 };
+
+
 
 export function ChatContainer({ initialCart = null }: ChatContainerProps) {
   const searchParams = useSearchParams();
   const initialPrompt = searchParams.get("prompt");
 
-  const [sessionId, setSessionId] = useState<string>("");
   const [messages, setMessages] = useState<ChatMessageItem[]>([INITIAL_GREETING]);
   const [cart, setCart] = useState<CartState | null>(initialCart);
+  const [isCartLoading, setIsCartLoading] = useState<boolean>(false);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [proposedOrder, setProposedOrder] = useState<ProposedOrderData | null>(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
@@ -45,6 +39,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasProcessedInitialPrompt, setHasProcessedInitialPrompt] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -53,26 +48,23 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Initialize Session ID and fetch initial cart state
+  // Fetch initial cart state for authenticated user
   useEffect(() => {
-    let sid = localStorage.getItem("flow_session_id");
-    if (!sid) {
-      sid = `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      localStorage.setItem("flow_session_id", sid);
-    }
-    setSessionId(sid);
-    fetchCart(sid);
+    fetchCart();
   }, []);
 
-  const fetchCart = async (sid: string) => {
+  const fetchCart = async () => {
+    setIsCartLoading(true);
     try {
-      const res = await fetch(`/api/cart?sessionId=${sid}`);
+      const res = await fetch("/api/cart");
       const data = await res.json();
       if (data.success && data.cart) {
         setCart(data.cart);
       }
     } catch (e) {
-      console.error("Failed to load initial cart:", e);
+      console.error("Failed to load cart:", e);
+    } finally {
+      setIsCartLoading(false);
     }
   };
 
@@ -81,15 +73,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  // Handle URL parameter prompt (e.g. ?prompt=...)
-  useEffect(() => {
-    if (initialPrompt && sessionId && !hasProcessedInitialPrompt) {
-      setHasProcessedInitialPrompt(true);
-      sendMessage(initialPrompt);
-    }
-  }, [initialPrompt, sessionId, hasProcessedInitialPrompt]);
-
-  // Send Message Handler
+  // Send Message Handler **** most important
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
@@ -110,7 +94,6 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: newHistory.map((m) => ({ role: m.role, content: m.content })),
-          sessionId,
         }),
       });
 
@@ -156,7 +139,6 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
           action: "add",
           productId,
           quantity: 1,
-          sessionId,
         }),
       });
       const data = await res.json();
@@ -181,7 +163,6 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
           action: "update",
           productId,
           quantity,
-          sessionId,
         }),
       });
       const data = await res.json();
@@ -205,7 +186,6 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
         body: JSON.stringify({
           action: "remove",
           productId,
-          sessionId,
           removeAll: true,
         }),
       });
@@ -223,29 +203,31 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
 
   // Initiate Checkout Proposal (Opens Confirmation Gate Modal)
   const handleInitiateCheckout = async () => {
+    setCheckoutLoading(true);
+    
     if (isProposingOrder) return;
     setIsProposingOrder(true);
     setIsCartOpen(false);
-
+    
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId,
           cartId: cart?.id,
         }),
       });
-
+      
       const data = await res.json();
-
+      
       if (!data.success) {
         throw new Error(data.error || "Failed to create order proposal.");
       }
-
+      setCheckoutLoading(false);
       setProposedOrder(data.order);
       setIsCheckoutOpen(true);
     } catch (err: any) {
+      setCheckoutLoading(false);
       showToast(err.message || "Failed to prepare order.");
       const errorMsg: ChatMessageItem = {
         id: `err_${Date.now()}`,
@@ -271,7 +253,7 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
     };
 
     setMessages((prev) => [...prev, confirmationMsg]);
-    fetchCart(sessionId);
+    fetchCart();
   };
 
   // Ask Details action trigger from Product Card
@@ -281,17 +263,14 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
 
   // Reset conversation
   const handleReset = () => {
-    const newSid = `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    localStorage.setItem("flow_session_id", newSid);
-    setSessionId(newSid);
     setMessages([INITIAL_GREETING]);
-    fetchCart(newSid);
+    fetchCart();
   };
 
   const cartItemCount = cart?.itemCount || 0;
 
   return (
-    <div className="relative flex flex-col h-[calc(100vh-65px)] max-w-5xl mx-auto px-4 py-4 sm:px-6 ">
+    <div className="relative flex flex-col h-[calc(100vh-78.5px)] max-w-[1112px] mx-auto p-6 border-x">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-20 right-6 z-50 rounded-xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 px-4 py-2.5 text-xs font-semibold shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3">
@@ -303,16 +282,13 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
       )}
 
       {/* Top Controls Bar */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-4 shrink-0">
+      <div className="flex items-center justify-between  border-zinc-800/80 mb-6 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 via-blue-600 to-cyan-400 text-white shadow-md shadow-indigo-500/20">
-            <Bot className="h-5 w-5" />
-          </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-sm text-white">FlowCommerce Copilot</h2>
               <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-mono text-zinc-400">stealth/ox-alpha</span>
+              <span className="text-[10px] font-mono text-zinc-400">{process.env.NEXT_PUBLIC_OPENROUTER_MODEL}</span>
             </div>
             <p className="text-[11px] text-zinc-500">Bounded Execution • Server-Gated Payments • Live Inventory</p>
           </div>
@@ -336,9 +312,9 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
             onClick={() => setIsCartOpen(true)}
             className="relative h-8 px-3 text-xs bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all font-semibold cursor-pointer"
           >
-            <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />
+            {isCartLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin text-indigo-400" /> : <ShoppingBag className="h-3.5 w-3.5 mr-1.5" />}
             <span>Cart</span>
-            {cartItemCount > 0 && <span className="ml-1.5 rounded-full bg-indigo-500 px-1.5 py-0.2 text-[10px] font-bold text-white">{cartItemCount}</span>}
+            {!isCartLoading && cartItemCount > 0 && <span className="ml-1.5 rounded-full bg-indigo-500 px-1.5 py-0.2 text-[10px] font-bold text-white">{cartItemCount}</span>}
           </Button>
         </div>
       </div>
@@ -390,13 +366,21 @@ export function ChatContainer({ initialCart = null }: ChatContainerProps) {
       />
 
       {/* Checkout Summary & Confirmation Gate Modal */}
+      {checkoutLoading ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
+          <div className="text-center space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
+            <p className="text-white text-sm">Preparing your order...</p>
+          </div>
+        </div>
+      ) : (
       <CheckoutModal
         order={proposedOrder}
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
         onPaymentSuccess={handlePaymentSuccess}
       />
+      )}
     </div>
   );
 }
-

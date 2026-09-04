@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createOrderProposal } from "@/lib/orders";
+import { auth } from "../../../../auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { sessionId: requestedSessionId, cartId, customerNote } = body;
+    const session = await auth();
+    const userId = session?.user?.id;
 
-    const sessionId = requestedSessionId || "default_guest_session";
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "Unauthorized. Please sign in." }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { cartId, customerNote } = body;
 
     const result = await createOrderProposal({
-      sessionId,
+      userId,
       cartId,
       customerNote,
     });
@@ -47,15 +53,14 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const sessionId = searchParams.get("sessionId");
+    const userId = searchParams.get("userId");
     const merchantId = searchParams.get("merchantId");
     const status = searchParams.get("status");
 
     const where: Record<string, any> = {};
 
-    if (sessionId) {
-      // Find cart IDs or user for this session
-      where.cart = { sessionId };
+    if (userId) {
+      where.userId = userId;
     }
 
     if (merchantId) {

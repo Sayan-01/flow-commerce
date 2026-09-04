@@ -144,8 +144,8 @@ export default async function MerchantAuditPage() {
   });
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-zinc-950 text-zinc-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-[calc(100vh-4rem)] text-zinc-100 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1180px] mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <AuditDashboard
           initialMetrics={initialMetrics}
           initialLogs={initialLogs as any}

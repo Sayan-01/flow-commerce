@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { HeroSection, ArchitecturePillars, InteractiveDemo, AgentWorkflow, CatalogPreview, HomeFooter } from "@/components/home";
 
+import { ArchitecturePreview } from "@/components/home/ArchitecturePreview";
+import Catalog from "@/components/home/Catalog";
+import { HeroSection } from "@/components/home/hero-section";
+import { HomeFooter } from "@/components/home/home-footer";
+import HowItWorks from "@/components/home/HowItWorks";
+import Principles from "@/components/home/Principles";
+import TrustStrip from "@/components/home/TrustStrip";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
@@ -12,23 +18,15 @@ export default async function HomePage() {
   });
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-100 selection:bg-indigo-500 selection:text-white">
-      {/* 1. Hero Section (RSC) */}
+    <div className="relative min-h-screen overflow-hidden  text-zinc-100 selection:bg-indigo-500 selection:text-white">
       <HeroSection />
+      <Catalog products={products}/>
 
-      {/* 2. Enterprise Safety Pillars (RSC) */}
-      <ArchitecturePillars />
+      <ArchitecturePreview />
+      <TrustStrip />
+      <Principles />
+      <HowItWorks />
 
-      {/* 3. Interactive Bounded Flow Simulation (Client Component) */}
-      <InteractiveDemo />
-
-      {/* 4. 5-Phase Agent Workflow Pipeline (RSC) */}
-      <AgentWorkflow />
-
-      {/* 5. Live Product Inventory Catalog (Client Interactive with Server-Loaded Data) */}
-      <CatalogPreview initialProducts={products} />
-
-      {/* 6. Footer (RSC) */}
       <HomeFooter />
     </div>
   );

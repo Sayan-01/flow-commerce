@@ -5,10 +5,10 @@ export interface OrderItemInput {
   quantity: number;
 }
 
-export async function createOrderProposal({ sessionId, cartId, customerNote }: { sessionId: string; cartId?: string; customerNote?: string }) {
+export async function createOrderProposal({ userId, cartId, customerNote }: { userId: string; cartId?: string; customerNote?: string }) {
   // 1. Fetch active cart
   const cart = await prisma.cart.findUnique({
-    where: cartId ? { id: cartId } : { sessionId },
+    where: cartId ? { id: cartId } : { userId },
     include: {
       items: {
         include: {
@@ -353,7 +353,7 @@ async function createRazorpayOrder({ amountInPaise, receipt }: { amountInPaise: 
 }
 
 export function getRazorpayClientConfig(order: any) {
-  const keyId = process.env.RAZORPAY_KEY_ID || "rzp_test_flowcommerce";
+  const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_flowcommerce";
   return {
     key: keyId.includes("placeholder") ? "rzp_test_flowcommerce" : keyId,
     amount: order.totalAmount * 100, // in paise
@@ -367,7 +367,7 @@ export function getRazorpayClientConfig(order: any) {
       contact: "9876543210",
     },
     theme: {
-      color: "#4f46e5",
+      color: "#10b981",
     },
   };
 }

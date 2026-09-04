@@ -31,29 +31,37 @@ const FLOW_COMMERCE_SYSTEM_PROMPT = `You are the FlowCommerce AI Shopping Copilo
 
 CRITICAL BOUNDED COMMERCE RULES (Enterprise Safety Guardrails):
 1. **Zero-Money Hallucinations**: NEVER assume, guess, or invent prices or stock. ALWAYS invoke "searchProducts" or "getProductDetails" before discussing any product.
-2. **Deterministic Pricing**: When citing prices, always format in Indian Rupees (e.g. ₹59,999 or ₹4,999).
-3. **Reasoned Upsells**: When a customer is interested in a main product (e.g. a laptop or mechanical keyboard), proactively suggest a compatible accessory or upgrade (e.g. ergonomic mouse, laptop stand, USB-C dock). ALWAYS provide a clear 1-line reason explaining why it pairs well (e.g., "Programmers frequently pair this with the UltraBook for multi-display productivity").
+2. **Deterministic Pricing**: When citing prices, always format in Indian Rupees (e.g. ₹9,999 or ₹4,999).
+3. **Reasoned Upsells**: When a customer is interested in a main product (e.g. a laptop, monitor, or mechanical keyboard), proactively suggest a compatible accessory or upgrade (e.g. ergonomic mouse, laptop stand, monitor light bar, USB-C dock). ALWAYS provide a clear 1-line reason explaining why it pairs well (e.g., "Programmers frequently pair this monitor with the LumiBar screen light for eye-care productivity").
 4. **Cart Actions**: When the customer explicitly asks to add an item to their cart ("add to cart", "buy this", "put in my cart"), call the "addToCart" tool.
-5. **Tone & Style**: Friendly, professional, concise, and helpful. Do not use any markdowen formatting. Never output raw JSON in your final user-facing text.
+5. **Tool Execution Accuracy**: When calling "searchProducts", pass clean product keywords into 'query' (e.g. 'headphones', 'fhd ips monitor', 'mechanical keyboard') and numeric budgets into 'maxPrice' (e.g. 5000). Avoid conversational sentences in 'query'.
+6. **No Search Loops & Budget Alternatives**: Do not call "searchProducts" more than twice in one turn. If no items match the user's exact budget, inform the user, present the closest available higher-tier model or budget alternatives provided in the tool output, and ask if they'd like to explore them.
+7. **Tone & Style**: Friendly, professional, concise, and helpful. Use clear markdown formatting (bolding, lists, pricing highlights). Never output raw JSON in your final user-facing text.
 `;
 
 export async function runAgentLoop({
   messages,
+  userId,
   sessionId,
   merchantId,
 }: {
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>;
-  sessionId: string;
+  userId?: string;
+  sessionId?: string;
   merchantId?: string;
 }): Promise<AgentRunResult> {
+  const effectiveUserId = userId || sessionId || "";
   const apiKey = process.env.OPENROUTER_API_KEY;
-  const model = process.env.OPENROUTER_MODEL || "stealth/ox-alpha";
+  const model = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct";
 
   const toolExecutions: ToolExecutionRecord[] = [];
 
-  // If no API key configured, use intelligent rule engine fallback
+  // Require a valid API key — no silent fallback
   if (!apiKey || apiKey.includes("placeholder")) {
-    return runFallbackAgentEngine(messages, sessionId, merchantId);
+    return {
+      reply: "OpenRouter API key is not configured",
+      toolExecutions,
+    };
   }
 
   try {
@@ -93,15 +101,21 @@ export async function runAgentLoop({
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.warn(`OpenRouter API returned ${response.status}: ${errorText}. Falling back to resilient engine.`);
-        return runFallbackAgentEngine(messages, sessionId, merchantId);
+        console.error(`OpenRouter API error ${response.status}: ${errorText}`);
+        return {
+          reply: `❌ The AI service returned an error (status ${response.status}). Please try again in a moment. If this keeps happening, check that your API key is valid.`,
+          toolExecutions,
+        };
       }
 
       const data = await response.json();
       const choice = data.choices?.[0];
 
       if (!choice || !choice.message) {
-        throw new Error("Invalid response structure from OpenRouter model.");
+        return {
+          reply: "❌ Received an unexpected response from the AI service. Please try again.",
+          toolExecutions,
+        };
       }
 
       const message = choice.message;
@@ -126,10 +140,10 @@ export async function runAgentLoop({
           }
 
           // Inject context
-          if (!toolArgs.sessionId) toolArgs.sessionId = sessionId;
+          toolArgs.userId = effectiveUserId;
 
           // Execute tool against PostgreSQL
-          const result = await executeAgentTool(toolName, toolArgs, { sessionId, merchantId });
+          const result = await executeAgentTool(toolName, toolArgs, { userId: effectiveUserId, merchantId });
 
           toolExecutions.push({
             id: toolCall.id,
@@ -148,232 +162,95 @@ export async function runAgentLoop({
         }
       } else {
         // Final assistant response generated
+        const content = message.content?.trim();
+        if (content) {
+          return {
+            reply: content,
+            toolExecutions,
+          };
+        }
+
+        // If model executed tools but returned an empty text string:
+        if (toolExecutions.length > 0) {
+          const lastExec = toolExecutions[toolExecutions.length - 1];
+          const result = lastExec.result;
+
+          if (result?.products && result.products.length > 0) {
+            const list = result.products
+              .map((p: any) => `* **${p.name}** — ₹${Number(p.price).toLocaleString("en-IN")}`)
+              .join("\n");
+            return {
+              reply: `Here are the matching products from our live catalog:\n\n${list}\n\nWould you like more details on any of these, or would you like to add one to your cart?`,
+              toolExecutions,
+            };
+          }
+
+          if (result?.closestAvailableMatches || result?.budgetAlternatives) {
+            let msg = `I checked our inventory, but we don't have items matching that exact budget.\n\n`;
+            if (result.closestAvailableMatches?.length > 0) {
+              msg += `**Closest available in our store:**\n` +
+                result.closestAvailableMatches
+                  .map((p: any) => `* **${p.name}** — ₹${Number(p.price).toLocaleString("en-IN")} (${p.category})`)
+                  .join("\n") + "\n\n";
+            }
+            if (result.budgetAlternatives?.length > 0) {
+              msg += `**Alternatives within your budget:**\n` +
+                result.budgetAlternatives
+                  .map((p: any) => `* **${p.name}** — ₹${Number(p.price).toLocaleString("en-IN")} (${p.category})`)
+                  .join("\n") + "\n\n";
+            }
+            msg += `Would you like to explore any of these options?`;
+            return {
+              reply: msg,
+              toolExecutions,
+            };
+          }
+        }
+
         return {
-          reply: message.content || "I have verified the inventory details for you.",
+          reply: "I'm sorry, I couldn't find matching items in our catalog for that request. Could you try adjusting your budget or searching for categories like keyboards, monitors, or audio gear?",
+          toolExecutions,
+        };
+      }
+    }
+
+    // Max tool-call loops exhausted: synthesize from executed tools rather than giving up
+    if (toolExecutions.length > 0) {
+      const lastExec = toolExecutions[toolExecutions.length - 1];
+      const result = lastExec.result;
+
+      if (result?.closestAvailableMatches || result?.budgetAlternatives) {
+        let msg = `We don't currently have products matching that exact price in our inventory.\n\n`;
+        if (result.closestAvailableMatches?.length > 0) {
+          msg += `**Closest available models:**\n` +
+            result.closestAvailableMatches
+              .map((p: any) => `* **${p.name}** — ₹${Number(p.price).toLocaleString("en-IN")}`)
+              .join("\n") + "\n\n";
+        }
+        if (result.budgetAlternatives?.length > 0) {
+          msg += `**Available within your budget:**\n` +
+            result.budgetAlternatives
+              .map((p: any) => `* **${p.name}** — ₹${Number(p.price).toLocaleString("en-IN")}`)
+              .join("\n") + "\n\n";
+        }
+        msg += `Let me know if any of these work for you!`;
+        return {
+          reply: msg,
           toolExecutions,
         };
       }
     }
 
     return {
-      reply: "Here are the verified catalog details matching your query.",
+      reply: "I checked our inventory for your query. Would you like to check out another category or adjust your budget?",
       toolExecutions,
     };
   } catch (error: any) {
-    console.error("Error executing OpenRouter agent loop:", error);
-    return runFallbackAgentEngine(messages, sessionId, merchantId);
+    console.error("Agent loop error:", error);
+    return {
+      reply: `❌ Something went wrong while processing your request. Please try again. If this keeps happening, contact support.`,
+      toolExecutions,
+    };
   }
-}
-
-// Resilient Fallback Engine for instant local simulation or connection issues
-async function runFallbackAgentEngine(
-  messages: Array<{ role: string; content: string }>,
-  sessionId: string,
-  merchantId?: string
-): Promise<AgentRunResult> {
-  const toolExecutions: ToolExecutionRecord[] = [];
-  const latestMessage = messages[messages.length - 1]?.content || "";
-  const lower = latestMessage.toLowerCase();
-
-  // 1. Detect Direct Add to Cart by ID or name
-  if (lower.includes("add") || lower.includes("buy") || lower.includes("put in") || lower.includes("add to cart")) {
-    // Check if product ID is explicitly passed like "Add product ID cm... to my shopping cart"
-    const idMatch = latestMessage.match(/(?:product id|id)\s*([a-zA-Z0-9_-]+)/i);
-    let productId = idMatch ? idMatch[1] : undefined;
-
-    if (!productId) {
-      // Try finding product by keywords in the message
-      const searchResult = await executeAgentTool("searchProducts", { query: latestMessage.replace(/add|to|my|cart|shopping|please|buy/gi, "").trim(), inStockOnly: true }, { sessionId });
-      if (searchResult.products && searchResult.products.length > 0) {
-        productId = searchResult.products[0].id;
-      }
-    }
-
-    if (productId) {
-      const addResult = await executeAgentTool(
-        "addToCart",
-        { productId, quantity: 1, sessionId },
-        { sessionId }
-      );
-
-      toolExecutions.push({
-        id: `call_${Date.now()}_add`,
-        name: "addToCart",
-        args: { productId, quantity: 1, sessionId },
-        result: addResult,
-      });
-
-      if (addResult.success) {
-        // Generate an upsell recommendation for the user
-        const recs = await executeAgentTool("getRecommendations", { sessionId }, { sessionId });
-        toolExecutions.push({
-          id: `call_${Date.now()}_recs`,
-          name: "getRecommendations",
-          args: { sessionId },
-          result: recs,
-        });
-
-        let reply = `✅ Added to cart: ${addResult.message}\n\n`;
-
-        if (recs.recommendations && recs.recommendations.length > 0) {
-          const topRec = recs.recommendations[0];
-          reply += `✨ AI Upsell Recommendation:\n` +
-            `Would you like to pair this with the ${topRec.name} for ₹${topRec.price.toLocaleString("en-IN")}?\n` +
-            `> Reason: ${topRec.reason}\n\n` +
-            `You can click Add in the recommendation card or check your updated cart drawer on the right!`;
-        } else {
-          reply += `Your cart has been updated. Open the Cart Drawer to review your items and proceed to checkout!`;
-        }
-
-        return { reply, toolExecutions };
-      } else {
-        return {
-          reply: `⚠️ Could not add to cart: ${addResult.error || "Item is currently unavailable or exceeds stock."}`,
-          toolExecutions,
-        };
-      }
-    }
-  }
-
-  // 2. Detect Remove from Cart
-  if (lower.includes("remove") || lower.includes("delete from cart") || lower.includes("clear item")) {
-    const idMatch = latestMessage.match(/(?:product id|id)\s*([a-zA-Z0-9_-]+)/i);
-    if (idMatch) {
-      const removeResult = await executeAgentTool("removeFromCart", { productId: idMatch[1], sessionId }, { sessionId });
-      toolExecutions.push({
-        id: `call_${Date.now()}_remove`,
-        name: "removeFromCart",
-        args: { productId: idMatch[1], sessionId },
-        result: removeResult,
-      });
-      return {
-        reply: `🗑️ ${removeResult.message || "Item has been removed from your shopping cart."}`,
-        toolExecutions,
-      };
-    }
-  }
-
-  // 3. Detect Cart Total or Review Request
-  if (lower.includes("cart") && (lower.includes("total") || lower.includes("what") || lower.includes("show") || lower.includes("review") || lower.includes("checkout"))) {
-    const cartResult = await executeAgentTool("calculateTotal", { sessionId }, { sessionId });
-    toolExecutions.push({
-      id: `call_${Date.now()}_total`,
-      name: "calculateTotal",
-      args: { sessionId },
-      result: cartResult,
-    });
-
-    if (!cartResult || cartResult.itemCount === 0 || !Array.isArray(cartResult.items)) {
-      return {
-        reply: `Your shopping cart is currently empty! Tell me what tech gadgets or developer gear you are looking for and I'll find the best in-stock matches.`,
-        toolExecutions,
-      };
-    }
-
-    const items = cartResult.items as Array<any>;
-    const subtotal = Number(cartResult.subtotal || 0);
-    const totalAmount = Number(cartResult.totalAmount || subtotal);
-
-    let reply = `🛒 Cart Summary (${cartResult.itemCount} items):\n\n`;
-    for (const it of items) {
-      const lineTotal = Number(it.lineTotal || it.subtotal || (it.price || it.unitPrice || 0) * (it.quantity || 1));
-      reply += `* ${it.name} × ${it.quantity} — ₹${lineTotal.toLocaleString("en-IN")}\n`;
-    }
-    reply += `\nSubtotal: ₹${subtotal.toLocaleString("en-IN")}\n` +
-      `Shipping: Free Express Delivery\n` +
-      `Total Amount: ₹${totalAmount.toLocaleString("en-IN")}\n\n` +
-      `Ready to proceed? Open the cart drawer to complete checkout with deterministic server verification.`;
-
-    return { reply, toolExecutions };
-  }
-
-  // 4. Detect Search / Discovery / Recommendations
-  if (
-    lower.includes("laptop") ||
-    lower.includes("keyboard") ||
-    lower.includes("mouse") ||
-    lower.includes("audio") ||
-    lower.includes("headphone") ||
-    lower.includes("find") ||
-    lower.includes("need") ||
-    lower.includes("suggest") ||
-    lower.includes("recommend") ||
-    lower.includes("coding") ||
-    lower.includes("price") ||
-    lower.includes("under") ||
-    lower.includes("accessories")
-  ) {
-    let category: string | undefined = undefined;
-    if (lower.includes("laptop")) category = "Laptops";
-    else if (lower.includes("keyboard") || lower.includes("mouse")) category = "Keyboards & Mice";
-    else if (lower.includes("audio") || lower.includes("headphone") || lower.includes("earphone")) category = "Audio";
-    else if (lower.includes("accessories") || lower.includes("dock") || lower.includes("hub")) category = "Accessories";
-
-    // Extract price if mentioned (e.g. 60k, 80000)
-    let maxPrice: number | undefined = undefined;
-    const priceMatch = lower.match(/(?:under|below|budget)\s*(?:₹|rs\.?)?\s*(\d+)(?:k|000)?/i);
-    if (priceMatch) {
-      const rawNum = parseInt(priceMatch[1]);
-      maxPrice = lower.includes("k") || rawNum < 1000 ? rawNum * 1000 : rawNum;
-    }
-
-    const searchResult = await executeAgentTool(
-      "searchProducts",
-      { query: category ? undefined : latestMessage, category, maxPrice, inStockOnly: true },
-      { sessionId, merchantId }
-    );
-
-    toolExecutions.push({
-      id: `call_${Date.now()}_search`,
-      name: "searchProducts",
-      args: { category, maxPrice, query: category ? undefined : latestMessage },
-      result: searchResult,
-    });
-
-    const products = searchResult.products || [];
-
-    if (products.length === 0) {
-      return {
-        reply: `I searched our live inventory but couldn't find any in-stock items directly matching that query. Would you like me to show our top-rated laptops or mechanical keyboards instead?`,
-        toolExecutions,
-      };
-    }
-
-    const topProduct = products[0];
-
-    // Generate upsell recommendations with explainable reason
-    const recsResult = await executeAgentTool("getRecommendations", { sessionId, category: topProduct.category }, { sessionId });
-    toolExecutions.push({
-      id: `call_${Date.now()}_recs`,
-      name: "getRecommendations",
-      args: { sessionId, category: topProduct.category },
-      result: recsResult,
-    });
-
-    const topUpsell = recsResult.recommendations?.[0];
-
-    let reply = `Here is our top verified match from the inventory:\n\n` +
-      `### 💻 ${topProduct.name}\n` +
-      `* Price: ₹${topProduct.price.toLocaleString("en-IN")}\n` +
-      `* Stock: ${topProduct.stock} units available in database\n` +
-      `* Category: \`${topProduct.category}\`\n` +
-      `* Overview: ${topProduct.description}\n\n`;
-
-    if (topUpsell) {
-      reply += `✨ AI Upsell Pairing:\n` +
-        `I recommend pairing this with the ${topUpsell.name} (₹${topUpsell.price.toLocaleString("en-IN")}).\n` +
-        `> *Reason: ${topUpsell.reason}*\n\n`;
-    }
-
-    reply += `Would you like me to add ${topProduct.name} to your shopping cart?`;
-
-    return { reply, toolExecutions };
-  }
-
-  // Default Greeting / General Query
-  return {
-    reply: `Hello! I am your FlowCommerce AI Shopping Copilot. I can help you search our verified tech inventory, recommend matching accessories with explainable reasoning, manage your cart, and check real-time stock.\n\nTry asking me:\n* "Find a developer laptop with 32GB RAM under ₹80,000"\n* "Recommend an ergonomic mechanical keyboard for fast typing"\n* "What accessories pair best with my setup?"`,
-    toolExecutions,
-  };
 }
 

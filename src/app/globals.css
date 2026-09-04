@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -46,6 +47,36 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* surfaces */
+  --color-paper: #121317;      /* page background */
+  --color-paper-2: #1c1e24;    /* recessed surface (thumbnails) */
+  --color-card: #191b21;       /* card / panel surface */
+  --color-line: #282b33;       /* hairline borders */
+
+  /* text */
+  --color-ink: #edeef1;        /* primary text */
+  --color-ink-soft: #9a9ca8;   /* secondary text */
+  --color-ink-faint: #5e616c;  /* tertiary / faint text */
+
+  /* accents */
+  --color-emerald: #4fae84;    /* primary accent — buttons, links, active states */
+  --color-emerald-2: #132a22;  /* deep accent surface — the preview panel */
+  --color-brass: #e2a55c;      /* secondary accent — prices, stock, bullets */
+
+  /* the receipt is always printed on cream paper, in both modes */
+  --color-receipt: #faf6ea;
+  --color-receipt-ink: #221e15;
+  --color-receipt-soft: #8a8267;
+
+  /* radius scale */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  /* type */
+  --font-display: "Fraunces", ui-serif, serif;
+  --font-sans: "Inter", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
 :root {
@@ -122,10 +153,66 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-paper text-foreground;
   }
   html {
-    
+    scroll-behavior: smooth;
+  }
+  /* eyebrow label used above section headings */
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.12em] text-emerald;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply  font-medium tracking-tight text-ink;
+  }
+
+  /* the printed receipt — signature element, always cream regardless of theme */
+  .receipt {
+    @apply w-[340px] bg-receipt rounded-md px-6 pt-8 pb-7 text-receipt-ink;
+    filter: drop-shadow(0 30px 54px rgba(0, 0, 0, 0.45));
+    clip-path: polygon(
+      0% 4%, 3.125% 0%, 6.25% 4%, 9.375% 0%, 12.5% 4%, 15.625% 0%, 18.75% 4%,
+      21.875% 0%, 25% 4%, 28.125% 0%, 31.25% 4%, 34.375% 0%, 37.5% 4%,
+      40.625% 0%, 43.75% 4%, 46.875% 0%, 50% 4%, 53.125% 0%, 56.25% 4%,
+      59.375% 0%, 62.5% 4%, 65.625% 0%, 68.75% 4%, 71.875% 0%, 75% 4%,
+      78.125% 0%, 81.25% 4%, 84.375% 0%, 87.5% 4%, 90.625% 0%, 93.75% 4%,
+      96.875% 0%, 100% 4%, 100% 96%, 96.875% 100%, 93.75% 96%, 90.625% 100%,
+      87.5% 96%, 84.375% 100%, 81.25% 96%, 78.125% 100%, 75% 96%, 71.875% 100%,
+      68.75% 96%, 65.625% 100%, 62.5% 96%, 59.375% 100%, 56.25% 96%,
+      53.125% 100%, 50% 96%, 46.875% 100%, 43.75% 96%, 40.625% 100%, 37.5% 96%,
+      34.375% 100%, 31.25% 96%, 28.125% 100%, 25% 96%, 21.875% 100%, 18.75% 96%,
+      15.625% 100%, 12.5% 96%, 9.375% 100%, 6.25% 96%, 3.125% 100%, 0% 96%
+    );
+  }
+  .receipt-divider {
+    border-top: 1px dashed #c9c2ac;
+    @apply my-3.5;
+  }
+  .receipt-barcode {
+    @apply h-6 mt-3.5 rounded-sm opacity-85;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--color-receipt-ink) 0 2px,
+      transparent 2px 5px,
+      var(--color-receipt-ink) 5px 6px,
+      transparent 6px 11px,
+      var(--color-receipt-ink) 11px 14px,
+      transparent 14px 16px
+    );
+  }
+
+  /* outlined numerals used only where content is a genuine sequence */
+  .stroke-number {
+    color: transparent;
+    -webkit-text-stroke: 1px var(--color-ink-faint);
+  }
+
+  /* hairline bento grid: children touch, gap becomes the divider line */
+  .bento {
+    @apply grid gap-px bg-line border border-line rounded-lg overflow-hidden;
   }
 }
 
